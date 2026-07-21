@@ -1,0 +1,13 @@
+{
+  "name": "Éclats Marchés",
+  "short_name": "Marchés",
+  "description": "Marchés de prédiction personnels en Éclats, miroirs de Polymarket et Manifold",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#090D14",
+  "theme_color": "#090D14",
+  "lang": "fr",
+  "icons": [
+    { "src": "icons/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}
