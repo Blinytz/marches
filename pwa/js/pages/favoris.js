@@ -3,7 +3,7 @@ import { etat } from "../etat.js";
 import { carteMarche, etatVide, echap } from "../ui.js";
 import { THEMES, REGIONS } from "../data/fixtures.js";
 
-const ONGLETS = [
+const ONGLETS_FAVORIS = [
   { cle: "evenements", lib: "Événements favoris" },
   { cle: "themes", lib: "Thèmes suivis" },
   { cle: "regions", lib: "Régions suivies" },
@@ -47,6 +47,6 @@ export function pageFavoris({ query }) {
 
   return `
     <h1>Ma liste</h1>
-    <div class="chips">${ONGLETS.map((o) => `<a class="chip ${onglet === o.cle ? "actif" : ""}" href="#/favoris?o=${o.cle}">${o.lib}</a>`).join("")}</div>
+    <div class="chips">${ONGLETS_FAVORIS.map((o) => `<a class="chip ${onglet === o.cle ? "actif" : ""}" href="#/favoris?o=${o.cle}">${o.lib}</a>`).join("")}</div>
     ${contenus[onglet] || contenus.evenements}`;
 }

@@ -26,7 +26,9 @@
   --r-bouton: 9px;
 }
 
-html[data-theme="clair"] {
+/* « clair » est le nom interne ; « light » est la valeur stampée par les visionneuses
+   externes (aperçu publié). Les deux doivent donner le même thème. */
+html[data-theme="clair"], html[data-theme="light"] {
   --bg: #F4F6FA;
   --surface-1: #FFFFFF;
   --surface-2: #EDF1F7;

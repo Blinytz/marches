@@ -2,7 +2,7 @@
 import { etat, totalARecuperer } from "../etat.js";
 import { echap, fmt, fmtEclats, fmtSigne, etatVide, valeurPosition, sparkline } from "../ui.js";
 
-const ONGLETS = [
+const ONGLETS_PORTEFEUILLE = [
   { cle: "vue", lib: "Vue générale" },
   { cle: "ordres", lib: "Ordres" },
   { cle: "historique", lib: "Historique" },
@@ -74,7 +74,7 @@ export function pagePortefeuille({ query }) {
     </div>
 
     <div class="chips" style="margin-top:14px">
-      ${ONGLETS.map((o) => `<a class="chip ${onglet === o.cle ? "actif" : ""}" href="#/portefeuille?o=${o.cle}">${o.lib}</a>`).join("")}
+      ${ONGLETS_PORTEFEUILLE.map((o) => `<a class="chip ${onglet === o.cle ? "actif" : ""}" href="#/portefeuille?o=${o.cle}">${o.lib}</a>`).join("")}
       <a class="chip" href="#/resultats">Résultats ↗</a>
     </div>
     ${contenus[onglet] || contenus.vue}`;

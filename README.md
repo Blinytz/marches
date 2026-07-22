@@ -15,7 +15,23 @@ sources.
 financière, solde de démonstration en mémoire. Gate A : validation visuelle par l'utilisateur
 avant les phases B à E.
 
-## Lancer le prototype
+## Voir le prototype
+
+**Lien d'aperçu permanent (privé) :**
+<https://claude.ai/code/artifact/7fd0adfb-2e51-408e-bac2-a409737b84b8>
+
+Cette adresse ne change jamais : à chaque modification du prototype, on régénère le paquet et on
+republie au même endroit.
+
+```powershell
+node scripts/build_apercu.mjs
+```
+
+Le script fusionne `pwa/` en un seul fichier autonome `apercu.html` (CSS, modules JS et images
+inlinés, aucune requête externe). Il échoue si deux modules déclarent le même identifiant de
+premier niveau, puisque la fusion se fait dans une seule portée.
+
+### En local
 
 Servir `pwa/` en statique, par exemple :
 
