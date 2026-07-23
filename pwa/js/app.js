@@ -25,17 +25,17 @@ const SOUS_NAV = {
     { lib: "Favoris", href: "#/favoris", actif: (r) => r.page === "favoris" },
     { lib: "Recherche", href: "#/recherche", actif: (r) => r.page === "recherche" && !r.query.horizon && !r.query.tri && !r.query.vue && !(r.query.region || "").startsWith("France") }
   ],
-  portefeuille: [
-    { lib: "Portefeuille", href: "#/portefeuille", actif: (r) => r.page === "portefeuille" },
-    { lib: "Résultats", href: "#/resultats", actif: (r) => r.page === "resultats" },
-    { lib: "Statistiques", href: "#/stats", actif: (r) => r.page === "stats" }
-  ],
-  positions: []
+  positions: [],
+  portefeuille: [],
+  resultats: [],
+  stats: []
 };
 
 function sectionPrimaire(page) {
   if (page === "enjeu") return "positions";
-  if (["portefeuille", "resultats", "stats"].includes(page)) return "portefeuille";
+  if (page === "portefeuille") return "portefeuille";
+  if (page === "resultats") return "resultats";
+  if (page === "stats") return "stats";
   return "marches";
 }
 
@@ -80,7 +80,7 @@ function majEntete() {
     el.textContent = etat.positions.length;
   });
   document.querySelectorAll('[data-badge="positions-m"]').forEach((el) => { el.hidden = etat.positions.length === 0; });
-  document.querySelectorAll('[data-badge="portefeuille"],[data-badge="portefeuille-m"]').forEach((el) => { el.hidden = claims <= 0; });
+  document.querySelectorAll('[data-badge="resultats"],[data-badge="resultats-m"]').forEach((el) => { el.hidden = claims <= 0; });
 
   const tr = document.getElementById("indicateur-tr");
   if (etat.sources.websocket.etat === "connecte") {

@@ -44,25 +44,29 @@
     </div>
   </header>
 
-  <!-- Navigation en 3 piliers : Marchés · Mes positions · Portefeuille (desktop) -->
+  <!-- Navigation : 5 piliers · Marchés · Positions · Portefeuille · Résultats · Statistiques -->
   <nav id="nav-principale" aria-label="Sections principales">
     <a href="#/accueil" data-primaire="marches"><span class="np-ico">🏛️</span>Marchés</a>
-    <a href="#/enjeu" data-primaire="positions"><span class="np-ico">🎯</span>Mes positions<span class="badge-compte" data-badge="positions" hidden></span></a>
-    <a href="#/portefeuille" data-primaire="portefeuille"><span class="np-ico eclat">◆</span>Portefeuille<span class="badge-point" data-badge="portefeuille" hidden></span></a>
+    <a href="#/enjeu" data-primaire="positions"><span class="np-ico">🎯</span>Positions<span class="badge-compte" data-badge="positions" hidden></span></a>
+    <a href="#/portefeuille" data-primaire="portefeuille"><span class="np-ico eclat">◆</span>Portefeuille</a>
+    <a href="#/resultats" data-primaire="resultats"><span class="np-ico">🏆</span>Résultats<span class="badge-point" data-badge="resultats" hidden></span></a>
+    <a href="#/stats" data-primaire="stats"><span class="np-ico">📊</span>Statistiques</a>
   </nav>
 
-  <!-- Sous-navigation contextuelle (dépend du pilier actif), rendue par app.js -->
+  <!-- Sous-navigation contextuelle (uniquement sous Marchés), rendue par app.js -->
   <div id="sous-nav" aria-label="Sous-sections"></div>
 
   <div id="bandeaux"></div>
 
   <main id="contenu" tabindex="-1"></main>
 
-  <!-- Barre basse mobile : mêmes 3 piliers -->
+  <!-- Barre basse mobile : mêmes 5 piliers -->
   <nav id="nav-mobile" aria-label="Navigation principale">
     <a href="#/accueil" data-primaire="marches"><span class="mnav-ico">🏛️</span>Marchés</a>
     <a href="#/enjeu" data-primaire="positions"><span class="mnav-ico">🎯</span>Positions<span class="badge-point" data-badge="positions-m" hidden></span></a>
-    <a href="#/portefeuille" data-primaire="portefeuille"><span class="mnav-ico eclat">◆</span>Portefeuille<span class="badge-point" data-badge="portefeuille-m" hidden></span></a>
+    <a href="#/portefeuille" data-primaire="portefeuille"><span class="mnav-ico eclat">◆</span>Portef.</a>
+    <a href="#/resultats" data-primaire="resultats"><span class="mnav-ico">🏆</span>Résultats<span class="badge-point" data-badge="resultats-m" hidden></span></a>
+    <a href="#/stats" data-primaire="stats"><span class="mnav-ico">📊</span>Stats</a>
   </nav>
 
   <div id="voile" hidden></div>

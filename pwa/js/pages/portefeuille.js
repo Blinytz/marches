@@ -75,8 +75,6 @@ export function pagePortefeuille({ query }) {
 
     <div class="chips" style="margin-top:14px">
       ${ONGLETS_PORTEFEUILLE.map((o) => `<a class="chip ${onglet === o.cle ? "actif" : ""}" href="#/portefeuille?o=${o.cle}">${o.lib}</a>`).join("")}
-      <a class="chip" href="#/resultats">Résultats ↗</a>
-      <a class="chip" href="#/stats">Statistiques ↗</a>
     </div>
     ${contenus[onglet] || contenus.vue}`;
 }

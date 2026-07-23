@@ -167,16 +167,18 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
 
 #nav-principale {
   position: sticky; top: 64px; z-index: 30;
-  display: flex; gap: 8px; align-items: center;
+  display: flex; gap: 6px; align-items: center;
   height: 54px; padding: 0 12px;
   background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
+  overflow-x: auto; scrollbar-width: none;
 }
+#nav-principale::-webkit-scrollbar { display: none; }
 #nav-principale a {
-  display: inline-flex; align-items: center; gap: 8px;
-  color: var(--text-2); font-weight: 700; font-size: 0.96rem;
-  padding: 9px 18px; border-radius: var(--r-pill); position: relative;
+  display: inline-flex; align-items: center; gap: 8px; white-space: nowrap;
+  color: var(--text-2); font-weight: 700; font-size: 0.94rem;
+  padding: 9px 15px; border-radius: var(--r-pill); position: relative;
   transition: background 120ms, color 120ms;
 }
 #nav-principale a.actif { color: #fff; background: var(--grad-accent); box-shadow: var(--ombre-accent); }
@@ -228,14 +230,15 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
   box-shadow: 0 -4px 20px rgba(27, 23, 53, 0.06);
 }
 #nav-mobile a {
-  flex: 1;
+  flex: 1; min-width: 0;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 9px 4px 11px;
-  font-size: 0.68rem; font-weight: 600;
+  padding: 9px 2px 11px;
+  font-size: 0.63rem; font-weight: 600;
   color: var(--text-3);
   min-height: 48px;
   position: relative;
 }
+#nav-mobile a span:not(.mnav-ico):not(.badge-point) { overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 #nav-mobile a.actif { color: var(--accent); }
 #nav-mobile a.actif .mnav-ico {
   background: var(--accent-soft); transform: translateY(-1px);
@@ -737,25 +740,29 @@ html { background: var(--bg); }
     </div>
   </header>
 
-  <!-- Navigation en 3 piliers : Marchés · Mes positions · Portefeuille (desktop) -->
+  <!-- Navigation : 5 piliers · Marchés · Positions · Portefeuille · Résultats · Statistiques -->
   <nav id="nav-principale" aria-label="Sections principales">
     <a href="#/accueil" data-primaire="marches"><span class="np-ico">🏛️</span>Marchés</a>
-    <a href="#/enjeu" data-primaire="positions"><span class="np-ico">🎯</span>Mes positions<span class="badge-compte" data-badge="positions" hidden></span></a>
-    <a href="#/portefeuille" data-primaire="portefeuille"><span class="np-ico eclat">◆</span>Portefeuille<span class="badge-point" data-badge="portefeuille" hidden></span></a>
+    <a href="#/enjeu" data-primaire="positions"><span class="np-ico">🎯</span>Positions<span class="badge-compte" data-badge="positions" hidden></span></a>
+    <a href="#/portefeuille" data-primaire="portefeuille"><span class="np-ico eclat">◆</span>Portefeuille</a>
+    <a href="#/resultats" data-primaire="resultats"><span class="np-ico">🏆</span>Résultats<span class="badge-point" data-badge="resultats" hidden></span></a>
+    <a href="#/stats" data-primaire="stats"><span class="np-ico">📊</span>Statistiques</a>
   </nav>
 
-  <!-- Sous-navigation contextuelle (dépend du pilier actif), rendue par app.js -->
+  <!-- Sous-navigation contextuelle (uniquement sous Marchés), rendue par app.js -->
   <div id="sous-nav" aria-label="Sous-sections"></div>
 
   <div id="bandeaux"></div>
 
   <main id="contenu" tabindex="-1"></main>
 
-  <!-- Barre basse mobile : mêmes 3 piliers -->
+  <!-- Barre basse mobile : mêmes 5 piliers -->
   <nav id="nav-mobile" aria-label="Navigation principale">
     <a href="#/accueil" data-primaire="marches"><span class="mnav-ico">🏛️</span>Marchés</a>
     <a href="#/enjeu" data-primaire="positions"><span class="mnav-ico">🎯</span>Positions<span class="badge-point" data-badge="positions-m" hidden></span></a>
-    <a href="#/portefeuille" data-primaire="portefeuille"><span class="mnav-ico eclat">◆</span>Portefeuille<span class="badge-point" data-badge="portefeuille-m" hidden></span></a>
+    <a href="#/portefeuille" data-primaire="portefeuille"><span class="mnav-ico eclat">◆</span>Portef.</a>
+    <a href="#/resultats" data-primaire="resultats"><span class="mnav-ico">🏆</span>Résultats<span class="badge-point" data-badge="resultats-m" hidden></span></a>
+    <a href="#/stats" data-primaire="stats"><span class="mnav-ico">📊</span>Stats</a>
   </nav>
 
   <div id="voile" hidden></div>
@@ -2759,8 +2766,6 @@ function pagePortefeuille({ query }) {
 
     <div class="chips" style="margin-top:14px">
       ${ONGLETS_PORTEFEUILLE.map((o) => `<a class="chip ${onglet === o.cle ? "actif" : ""}" href="#/portefeuille?o=${o.cle}">${o.lib}</a>`).join("")}
-      <a class="chip" href="#/resultats">Résultats ↗</a>
-      <a class="chip" href="#/stats">Statistiques ↗</a>
     </div>
     ${contenus[onglet] || contenus.vue}`;
 }
@@ -3339,17 +3344,17 @@ const SOUS_NAV = {
     { lib: "Favoris", href: "#/favoris", actif: (r) => r.page === "favoris" },
     { lib: "Recherche", href: "#/recherche", actif: (r) => r.page === "recherche" && !r.query.horizon && !r.query.tri && !r.query.vue && !(r.query.region || "").startsWith("France") }
   ],
-  portefeuille: [
-    { lib: "Portefeuille", href: "#/portefeuille", actif: (r) => r.page === "portefeuille" },
-    { lib: "Résultats", href: "#/resultats", actif: (r) => r.page === "resultats" },
-    { lib: "Statistiques", href: "#/stats", actif: (r) => r.page === "stats" }
-  ],
-  positions: []
+  positions: [],
+  portefeuille: [],
+  resultats: [],
+  stats: []
 };
 
 function sectionPrimaire(page) {
   if (page === "enjeu") return "positions";
-  if (["portefeuille", "resultats", "stats"].includes(page)) return "portefeuille";
+  if (page === "portefeuille") return "portefeuille";
+  if (page === "resultats") return "resultats";
+  if (page === "stats") return "stats";
   return "marches";
 }
 
@@ -3394,7 +3399,7 @@ function majEntete() {
     el.textContent = etat.positions.length;
   });
   document.querySelectorAll('[data-badge="positions-m"]').forEach((el) => { el.hidden = etat.positions.length === 0; });
-  document.querySelectorAll('[data-badge="portefeuille"],[data-badge="portefeuille-m"]').forEach((el) => { el.hidden = claims <= 0; });
+  document.querySelectorAll('[data-badge="resultats"],[data-badge="resultats-m"]').forEach((el) => { el.hidden = claims <= 0; });
 
   const tr = document.getElementById("indicateur-tr");
   if (etat.sources.websocket.etat === "connecte") {
