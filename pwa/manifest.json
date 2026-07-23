@@ -4,8 +4,8 @@
   "description": "Marchés de prédiction personnels en Éclats, miroirs de Polymarket et Manifold",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#090D14",
-  "theme_color": "#090D14",
+  "background_color": "#F1F0FB",
+  "theme_color": "#F1F0FB",
   "lang": "fr",
   "icons": [
     { "src": "icons/icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }

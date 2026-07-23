@@ -50,9 +50,9 @@ export function pageParametres({ query }) {
   const preferences = `
     <div class="panneau"><h3>Apparence</h3>
       <div class="reglage">
-        <div class="reglage-infos"><div class="reglage-libelle">Thème</div>
-          <div class="reglage-desc">Sombre par défaut, clair disponible, suivi du système à venir.</div></div>
-        <div class="reglage-ctrl"><button class="btn" data-action="basculer-theme">${etat.theme === "sombre" ? "🌙 Sombre" : "☀️ Clair"} · basculer</button></div>
+        <div class="reglage-infos"><div class="reglage-libelle">Densité</div>
+          <div class="reglage-desc">Confortable par défaut. Le mode compact resserre les listes pour afficher plus de marchés d'un coup.</div></div>
+        <div class="reglage-ctrl"><button class="btn btn-discret">Confortable</button></div>
       </div>
       <div class="reglage">
         <div class="reglage-infos"><div class="reglage-libelle">Mouvement réduit</div>

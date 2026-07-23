@@ -104,20 +104,30 @@ function animerTransfertClaim(depuisEl, montant) {
   }
   const dep = depuisEl.getBoundingClientRect();
   const arr = solde.getBoundingClientRect();
-  for (let i = 0; i < 6; i++) {
+  const formes = ["✦", "◆", "●", "✧", "★"];
+  const couleurs = ["#F5A518", "#6B4EF6", "#FF5FA2", "#10B981", "#FFC948"];
+  for (let i = 0; i < 14; i++) {
     const p = document.createElement("span");
     p.className = "particule";
-    p.textContent = "◇";
-    p.style.left = `${dep.left + dep.width / 2 + (i - 3) * 8}px`;
-    p.style.top = `${dep.top}px`;
+    p.textContent = formes[i % formes.length];
+    p.style.color = couleurs[i % couleurs.length];
+    p.style.fontSize = `${0.7 + Math.random() * 0.7}rem`;
+    const jitterX = (Math.random() - 0.5) * dep.width;
+    p.style.left = `${dep.left + dep.width / 2 + jitterX}px`;
+    p.style.top = `${dep.top + dep.height / 2}px`;
     document.body.appendChild(p);
     requestAnimationFrame(() => {
       setTimeout(() => {
-        p.style.transform = `translate(${arr.left - dep.left - (i - 3) * 8 + arr.width / 2}px, ${arr.top - dep.top}px) scale(0.5)`;
+        // La moitié converge vers le solde, l'autre gicle façon confettis.
+        if (i % 2 === 0) {
+          p.style.transform = `translate(${arr.left - dep.left - jitterX + arr.width / 2}px, ${arr.top - dep.top}px) scale(0.4) rotate(${Math.random() * 360}deg)`;
+        } else {
+          p.style.transform = `translate(${(Math.random() - 0.5) * 220}px, ${60 + Math.random() * 120}px) rotate(${Math.random() * 540}deg)`;
+        }
         p.style.opacity = "0";
-      }, i * 45);
+      }, i * 28);
     });
-    setTimeout(() => p.remove(), 900 + i * 45);
+    setTimeout(() => p.remove(), 1000 + i * 28);
   }
   // Compteur : de l'ancien au nouveau solde
   const cible = etat.solde;
