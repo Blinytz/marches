@@ -153,6 +153,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
 .solde { font-weight: 800; white-space: nowrap; color: var(--eclats-fonce); }
 .solde-claims { font-size: 0.68rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
 
+/* Badge de notifications non vues (alerte) */
 .badge-compte {
   position: absolute; top: -7px; right: -9px;
   background: var(--accent-2); color: white;
@@ -160,8 +161,18 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
   border-radius: var(--r-pill); padding: 1px 6px;
   box-shadow: 0 2px 6px rgba(255, 95, 162, 0.5);
 }
-#nav-sections .badge-compte, #nav-mobile .badge-point { position: static; margin-left: 5px; box-shadow: none; }
-.badge-point { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); }
+/* Compteur informatif (nombre de positions ouvertes) : neutre, pas une alerte */
+.badge-nombre {
+  display: inline-block; background: var(--accent-soft); color: var(--accent);
+  font-size: 0.66rem; font-weight: 800; border-radius: var(--r-pill);
+  padding: 1px 7px; margin-left: 6px;
+}
+#nav-principale a.actif .badge-nombre { background: rgba(255, 255, 255, 0.28); color: #fff; }
+#nav-mobile .badge-nombre { position: absolute; top: 4px; right: 50%; transform: translateX(24px); margin: 0; }
+/* Point d'action : uniquement quand quelque chose vous attend (Éclats à récupérer) */
+.badge-point { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--accent-2); margin-left: 6px; }
+.badge-point.or { background: var(--eclats); box-shadow: 0 0 0 3px var(--eclats-soft); }
+#nav-mobile .badge-point { position: absolute; top: 6px; right: 50%; transform: translateX(20px); margin: 0; }
 
 /* ============ Navigation en 3 piliers (desktop) ============ */
 
@@ -184,8 +195,10 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
 #nav-principale a.actif { color: #fff; background: var(--grad-accent); box-shadow: var(--ombre-accent); }
 #nav-principale a:not(.actif):hover { color: var(--accent); background: var(--accent-soft); }
 .np-ico { font-size: 1.08rem; line-height: 1; }
+/* L'Éclat est la monnaie : il reste doré en toutes circonstances, y compris
+   quand l'onglet est sélectionné (sur la pastille violette, l'or ressort bien). */
 .np-ico.eclat, .mnav-ico.eclat { color: var(--eclats); }
-#nav-principale a.actif .np-ico.eclat, #nav-mobile a.actif .mnav-ico.eclat { color: #fff; }
+#nav-principale a.actif .np-ico.eclat { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
 
 /* Sous-navigation contextuelle */
 #sous-nav {
@@ -233,7 +246,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
   flex: 1; min-width: 0;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   padding: 9px 2px 11px;
-  font-size: 0.63rem; font-weight: 600;
+  font-size: 0.56rem; font-weight: 700; letter-spacing: -0.01em;
   color: var(--text-3);
   min-height: 48px;
   position: relative;
@@ -691,6 +704,12 @@ a.carte:hover, .carte-marche:hover { transform: translateY(-3px); box-shadow: va
 .bj-nom { font-weight: 700; font-size: 0.82rem; }
 .bj-etat { font-size: 0.7rem; font-weight: 700; color: var(--text-3); }
 .badge-jalon.obtenu .bj-etat { color: var(--eclats-fonce); }
+.succes-groupe summary { cursor: pointer; display: flex; align-items: center; gap: 10px; }
+.succes-groupe summary .pastille { margin-left: auto; }
+.succes-progression { height: 7px; border-radius: 99px; overflow: hidden; background: var(--fond-3); margin-top: 8px; }
+.succes-progression span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--accent), var(--eclats)); }
+.succes-progression.grand { height: 11px; }
+.badge-jalon small { display: block; margin-top: 7px; line-height: 1.35; }
 
 .deux-colonnes { display: grid; gap: 16px; }
 @media (min-width: 900px) { .deux-colonnes { grid-template-columns: 1fr 1fr; } }
@@ -743,9 +762,9 @@ html { background: var(--bg); }
   <!-- Navigation : 5 piliers · Marchés · Positions · Portefeuille · Résultats · Statistiques -->
   <nav id="nav-principale" aria-label="Sections principales">
     <a href="#/accueil" data-primaire="marches"><span class="np-ico">🏛️</span>Marchés</a>
-    <a href="#/enjeu" data-primaire="positions"><span class="np-ico">🎯</span>Positions<span class="badge-compte" data-badge="positions" hidden></span></a>
+    <a href="#/enjeu" data-primaire="positions"><span class="np-ico">🎯</span>Positions<span class="badge-nombre" data-badge="positions" hidden></span></a>
     <a href="#/portefeuille" data-primaire="portefeuille"><span class="np-ico eclat">◆</span>Portefeuille</a>
-    <a href="#/resultats" data-primaire="resultats"><span class="np-ico">🏆</span>Résultats<span class="badge-point" data-badge="resultats" hidden></span></a>
+    <a href="#/resultats" data-primaire="resultats"><span class="np-ico">🏆</span>Résultats<span class="badge-point or" data-badge="resultats" title="Des Éclats vous attendent" hidden></span></a>
     <a href="#/stats" data-primaire="stats"><span class="np-ico">📊</span>Statistiques</a>
   </nav>
 
@@ -759,10 +778,10 @@ html { background: var(--bg); }
   <!-- Barre basse mobile : mêmes 5 piliers -->
   <nav id="nav-mobile" aria-label="Navigation principale">
     <a href="#/accueil" data-primaire="marches"><span class="mnav-ico">🏛️</span>Marchés</a>
-    <a href="#/enjeu" data-primaire="positions"><span class="mnav-ico">🎯</span>Positions<span class="badge-point" data-badge="positions-m" hidden></span></a>
-    <a href="#/portefeuille" data-primaire="portefeuille"><span class="mnav-ico eclat">◆</span>Portef.</a>
-    <a href="#/resultats" data-primaire="resultats"><span class="mnav-ico">🏆</span>Résultats<span class="badge-point" data-badge="resultats-m" hidden></span></a>
-    <a href="#/stats" data-primaire="stats"><span class="mnav-ico">📊</span>Stats</a>
+    <a href="#/enjeu" data-primaire="positions"><span class="mnav-ico">🎯</span>Positions<span class="badge-nombre" data-badge="positions-m" hidden></span></a>
+    <a href="#/portefeuille" data-primaire="portefeuille"><span class="mnav-ico eclat">◆</span>Portefeuille</a>
+    <a href="#/resultats" data-primaire="resultats"><span class="mnav-ico">🏆</span>Résultats<span class="badge-point or" data-badge="resultats-m" hidden></span></a>
+    <a href="#/stats" data-primaire="stats"><span class="mnav-ico">📊</span>Statistiques</a>
   </nav>
 
   <div id="voile" hidden></div>
@@ -1256,15 +1275,15 @@ const DEFAITES = [
 
 // Registre de démonstration du portefeuille (les plus récents d'abord)
 const LEDGER = [
-  { t: ilYA(10), montant: 251.34, source: "marches_vente", libelle: "Vente partielle · Shutdown NON" },
-  { t: ilYA(46), montant: -250, source: "marches_mise", libelle: "Achat OUI · Fed July" },
-  { t: ilYA(70), montant: -500, source: "marches_mise", libelle: "Achat NON · Shutdown" },
-  { t: ilYA(120), montant: -200, source: "marches_mise", libelle: "Achat NON · PSG Ligue 1" },
-  { t: ilYA(200), montant: -100, source: "marches_mise", libelle: "Achat OUI · Brent above 90" },
-  { t: ilYA(300), montant: -120, source: "marches_mise", libelle: "Achat OUI · Canicule 42C" },
-  { t: ilYA(690), montant: 412, source: "marches_gain", libelle: "Gain récupéré · Starship flight 11" },
-  { t: ilYA(750), montant: -150, source: "marches_mise", libelle: "Achat OUI · Starship flight 11" },
-  { t: ilYA(2000), montant: 5000, source: "paris_sportifs_gain", libelle: "Mouvement d'une autre app de l'écosystème" }
+  { t: ilYA(10), montant: 251.34, source: "marches_vente", marcheId: "pm-shutdown-31", libelle: "Vente partielle · Shutdown NON" },
+  { t: ilYA(46), montant: -250, source: "marches_mise", marcheId: "pm-fed-juillet", libelle: "Achat OUI · Fed July" },
+  { t: ilYA(70), montant: -500, source: "marches_mise", marcheId: "pm-shutdown-31", libelle: "Achat NON · Shutdown" },
+  { t: ilYA(120), montant: -200, source: "marches_mise", marcheId: "mf-psg-ligue1", libelle: "Achat NON · PSG Ligue 1" },
+  { t: ilYA(200), montant: -100, source: "marches_mise", marcheId: "pm-petrole-90", libelle: "Achat OUI · Brent above 90" },
+  { t: ilYA(300), montant: -120, source: "marches_mise", marcheId: "mf-canicule-juillet", libelle: "Achat OUI · Canicule 42C" },
+  { t: ilYA(690), montant: 412, source: "marches_gain", marcheId: "mf-spacex-lancement", libelle: "Gain récupéré · Starship flight 11" },
+  { t: ilYA(750), montant: -150, source: "marches_mise", marcheId: "mf-spacex-lancement", libelle: "Achat OUI · Starship flight 11" },
+  { t: ilYA(2000), montant: 5000, source: "paris_sportifs_gain", application: "Paris Sportifs", libelle: "Gain récupéré dans Paris Sportifs" }
 ];
 
 const SOLDE_DEMO = 12450;
@@ -1387,7 +1406,6 @@ const ETAT_SOURCES_DEFAUT = {
 /* ================= js/etat.js ================= */
 // État global du prototype Phase A.
 // Tout est local (mémoire + localStorage) : aucune connexion réseau, aucune mutation financière.
-
 const CLE_STOCKAGE = "eclats-marches-proto";
 
 function charger() {
@@ -1502,6 +1520,7 @@ function recupererClaim(id) {
         t: new Date().toISOString(),
         montant: c.montant,
         source: c.type === "REMBOURSEMENT" ? "marches_remboursement" : "marches_gain",
+        marcheId: c.marcheId,
         libelle: (c.type === "REMBOURSEMENT" ? "Remboursement récupéré · " : "Gain récupéré · ") + c.titre
       });
       notifier();
@@ -1535,7 +1554,6 @@ function basculerTheme() {
 // Aides de rendu partagées (formats, badges, cartes, graphiques SVG).
 // Tous les rendus retournent des chaînes HTML ; les interactions passent par la
 // délégation d'événements de app.js (data-action, data-fav, data-aller).
-
 const echap = (s) => String(s ?? "")
   .replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")
   .replaceAll('"', "&quot;");
@@ -1857,8 +1875,6 @@ function demarrerRouteur(conteneur, apresRendu) {
 
 /* ================= js/pages/accueil.js ================= */
 // Accueil « Pour moi » : mélange de formats (section 9.2), ordre section 8.8.
-
-
 const ouverts = () => etat.marches.filter((m) => m.status === "OPEN" &&
   !(etat.demo.panne_polymarket && m.source === "POLYMARKET") &&
   !(etat.demo.panne_manifold && m.source === "MANIFOLD"));
@@ -1964,9 +1980,6 @@ function pageAccueil() {
 /* ================= js/pages/recherche.js ================= */
 // Recherche et exploration : filtres obligatoires (8.3), horizons (8.4), tris (8.5),
 // doublons inter-sources jamais fusionnés (3.2).
-
-
-
 const HORIZONS = [
   { cle: "1", lib: "< 1 h" }, { cle: "6", lib: "< 6 h" }, { cle: "24", lib: "< 24 h" },
   { cle: "72", lib: "< 3 j" }, { cle: "168", lib: "< 7 j" }, { cle: "720", lib: "< 30 j" },
@@ -2111,8 +2124,6 @@ function pageRecherche({ query: q }) {
 //  - on choisit d'abord un CAMP (OUI ou NON) via deux boutons de prix explicites ;
 //  - le mode Vendre n'apparaît que si une position existe, via un encart « Votre position »
 //    qui propose Renforcer et Vendre. Plus de double bascule OUI/NON + Acheter/Vendre.
-
-
 let ticket = null; // { marcheId, issueId, mode, montant, parts, etape, prixServeur, recu }
 
 function ouvrirTicket(marcheId, issueId, mode = "achat") {
@@ -2149,7 +2160,7 @@ function encartPosition(m, pos, t) {
     <div class="tp-chiffres">
       <span>${fmt(pos.parts)} parts</span><span>·</span>
       <span>valeur ${val != null ? fmt(val) : "?"}</span><span>·</span>
-      <span class="${pl >= 0 ? "vert" : "rouge"}">P&amp;L ${pl != null ? fmtSigne(pl) : "?"}</span>
+      <span class="${pl >= 0 ? "vert" : "rouge"}">Résultat ${pl != null ? fmtSigne(pl) : "?"}</span>
     </div>
     <div class="ticket-actions-pos">
       <button class="btn ${t.mode === "achat" ? "btn-principal" : "btn-discret"}" data-ticket="renforcer">Renforcer</button>
@@ -2518,8 +2529,6 @@ function htmlTicketCourant() {
 
 /* ================= js/pages/enjeu.js ================= */
 // Page En jeu (9.6) : destination principale de suivi des positions.
-
-
 const SEGMENTS = [
   { cle: "actifs", lib: "Actifs" },
   { cle: "bientot", lib: "Bientôt" },
@@ -2574,7 +2583,7 @@ function cartePosition(pos, deplie) {
         <span class="val num">${fmt(pos.probEntree * 100)} → ${p != null ? fmt(p * 100) : "?"}
         ${deltaPts != null ? `<span class="${favorable ? "vert" : "rouge"}">(${fmtSigne(deltaPts)} pts)</span>` : ""}</span></div>
       <div class="bloc"><span class="lib">Valeur actuelle</span><span class="val num">${val != null ? fmt(val) : "?"}</span></div>
-      <div class="bloc"><span class="lib">P&amp;L latent</span>
+      <div class="bloc"><span class="lib">Résultat latent</span>
         <span class="val num ${pl >= 0 ? "vert" : "rouge"}">${pl != null ? `${fmtSigne(pl)} (${fmtSigne(plPctv)} %)` : "?"}</span></div>
       <div class="bloc"><span class="lib">Paiement potentiel</span><span class="val num">${fmt(paiement)}</span></div>
       ${sparkline(histo, { depuis: new Date(pos.achatAt).getTime(), ligne: pos.probEntree })}
@@ -2617,7 +2626,7 @@ function pageEnjeu({ query }) {
   const positions = etat.positions;
   if (!positions.length) {
     return `<h1>Mes positions</h1>` + etatVide("🎯", "Aucune position ouverte",
-      "Achetez OUI ou NON sur un marché : votre position vivra ici, avec sa courbe, son P&L et son échéance.",
+      "Achetez OUI ou NON sur un marché : votre position vivra ici, avec sa courbe, son résultat et son échéance.",
       `<a class="btn btn-principal" href="#/recherche?horizon=24&tradable=1">Voir les marchés courts</a>`);
   }
 
@@ -2658,7 +2667,7 @@ function pageEnjeu({ query }) {
       <div class="bloc"><span class="lib muet">Positions ouvertes</span><div class="val num" style="font-size:1.25rem; font-weight:700">${positions.length}</div></div>
       <div class="bloc"><span class="lib muet">Encore exposé</span><div class="val num" style="font-size:1.25rem; font-weight:700">${fmt(totalExpose)}</div></div>
       <div class="bloc"><span class="lib muet">Valeur liquidative</span><div class="val num" style="font-size:1.25rem; font-weight:700">${fmt(totalValeur)}</div></div>
-      <div class="bloc"><span class="lib muet">P&amp;L latent</span><div class="val num ${totalPl >= 0 ? "vert" : "rouge"}" style="font-size:1.25rem; font-weight:700">${fmtSigne(totalPl)} (${fmtSigne((totalPl / totalExpose) * 100)} %)</div></div>
+      <div class="bloc"><span class="lib muet">Résultat latent</span><div class="val num ${totalPl >= 0 ? "vert" : "rouge"}" style="font-size:1.25rem; font-weight:700">${fmtSigne(totalPl)} (${fmtSigne((totalPl / totalExpose) * 100)} %)</div></div>
       <div class="bloc"><span class="lib muet">Paiement maximal</span><div class="val num" style="font-size:1.25rem; font-weight:700">${fmt(paiementMax)}</div></div>
       <div class="bloc"><span class="lib muet">Prochaine échéance</span><div class="val compte-rebours" data-rebours="${prochaine || ""}">${prochaine ? compteReboursCourt(prochaine) : "?"}</div></div>
       <div class="bloc"><span class="lib muet">Favorables / défavorables</span><div class="val num"><span class="vert">${favorables}</span> / <span class="rouge">${positions.length - favorables}</span></div></div>
@@ -2669,7 +2678,7 @@ function pageEnjeu({ query }) {
     </div>
     <div class="chips">
       <span class="tres-muet" style="align-self:center">Trier :</span>
-      ${[["echeance", "Échéance"], ["pl", "Meilleur P&L"], ["pire", "Pire P&L"], ["enjeu", "Plus gros enjeu"]].map(([c, l]) =>
+      ${[["echeance", "Échéance"], ["pl", "Meilleur résultat"], ["pire", "Pire résultat"], ["enjeu", "Plus gros enjeu"]].map(([c, l]) =>
         `<a class="chip ${tri === c ? "actif" : ""}" href="#/enjeu?seg=${segment}&tri=${c}">${l}</a>`).join("")}
     </div>
 
@@ -2691,7 +2700,6 @@ function pageEnjeu({ query }) {
 
 /* ================= js/pages/portefeuille.js ================= */
 // Portefeuille (9.7) : vision patrimoniale globale + registre d'Éclats.
-
 
 const ONGLETS_PORTEFEUILLE = [
   { cle: "vue", lib: "Vue générale" },
@@ -2727,29 +2735,40 @@ function pagePortefeuille({ query }) {
           Les gains à récupérer n'y entrent qu'après le clic « Récupérer » dans Résultats.</p>
       </div>
       <div class="panneau"><h3>Positions ouvertes</h3>
-        <p class="muet">Le suivi détaillé (courbes, lots, P&amp;L) vit dans <a href="#/enjeu" style="text-decoration:underline">En jeu</a>.</p>
+        <p class="muet">Le suivi détaillé (courbes, lots, résultat) vit dans <a href="#/enjeu" style="text-decoration:underline">Positions</a>.</p>
       </div>`,
     ordres: etatVide("🧾", "Aucun ordre en attente",
       "Les ordres au marché s'exécutent immédiatement. Les ordres limités locaux arriveront dans une version future (modèle prévu, non activé)."),
     historique: `<div class="carte liste-compacte">
       ${etat.positions.flatMap((p) => p.chronologie.map((c) => ({ ...c, pos: p })))
         .sort((a, b) => new Date(b.t) - new Date(a.t))
-        .map((c) => `<div class="ligne-compacte">
+        .map((c) => {
+          const m = marche(c.pos.marcheId);
+          return `<a class="ligne-compacte" href="#/marche/${c.pos.marcheId}">
           <span class="tres-muet" style="width:110px">${new Date(c.t).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-          <span class="carte-titre" style="flex:1">${echap(c.texte)}</span>
-        </div>`).join("")}</div>`,
+          <span style="flex:1"><strong>${echap(m?.titleOriginal || "Marché inconnu")}</strong><br>
+            <span class="tres-muet">${echap(c.pos.issueLabel)} · ${echap(c.texte)}</span></span>
+          <span class="pastille">${echap(m?.source || "Source inconnue")}</span>
+        </a>`;
+        }).join("")}</div>`,
     registre: `<div class="defilement-x"><table class="tableau">
       <thead><tr><th>Date</th><th>Libellé</th><th>Source</th><th>Montant</th></tr></thead>
       <tbody>
-      ${etat.ledger.map((l) => `<tr>
+      ${etat.ledger.map((l) => {
+        const m = l.marcheId ? marche(l.marcheId) : null;
+        const contexte = m
+          ? `<a href="#/marche/${m.id}">${echap(m.titleOriginal)}</a>`
+          : echap(l.application || "Autre application");
+        return `<tr>
         <td class="tres-muet">${new Date(l.t).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
-        <td>${echap(l.libelle)}</td>
-        <td class="tres-muet">${echap(l.source)}</td>
+        <td>${echap(l.libelle)}<br><span class="tres-muet">${contexte}</span></td>
+        <td><span class="pastille">${echap(l.source)}</span></td>
         <td class="num ${l.montant >= 0 ? "vert" : "rouge"}">${fmtSigne(l.montant)}</td>
-      </tr>`).join("")}
+      </tr>`;
+      }).join("")}
       </tbody></table></div>
-      <p class="tres-muet">Registre partagé de l'écosystème : chaque app y écrit ses mouvements via sa propre source.
-        Écriture toujours côté serveur, jamais depuis le navigateur.</p>`
+      <p class="tres-muet">Chaque ligne indique l'application ou le marché à l'origine du mouvement. Une mise retire des Éclats,
+        une vente ou un gain récupéré en ajoute. Dans la version connectée, ces écritures seront créées uniquement côté serveur.</p>`
   };
 
   return `
@@ -2759,8 +2778,8 @@ function pagePortefeuille({ query }) {
       <div class="bloc"><span class="lib muet">Disponibles</span><div class="val num" style="font-size:1.15rem; font-weight:700">${fmt(etat.solde)}</div></div>
       <div class="bloc"><span class="lib muet">Positions</span><div class="val num" style="font-size:1.15rem; font-weight:700">${fmt(valPositions)}</div></div>
       <div class="bloc"><span class="lib muet">À récupérer</span><div class="val num orange" style="font-size:1.15rem; font-weight:700">${fmt(aRecuperer)}</div></div>
-      <div class="bloc"><span class="lib muet">P&amp;L aujourd'hui</span><div class="val num vert">${fmtSigne(plJour)}</div></div>
-      <div class="bloc"><span class="lib muet">P&amp;L total</span><div class="val num ${plTotal >= 0 ? "vert" : "rouge"}">${fmtSigne(plTotal)}</div></div>
+      <div class="bloc"><span class="lib muet">Résultat aujourd'hui</span><div class="val num vert">${fmtSigne(plJour)}</div></div>
+      <div class="bloc"><span class="lib muet">Résultat total</span><div class="val num ${plTotal >= 0 ? "vert" : "rouge"}">${fmtSigne(plTotal)}</div></div>
       <div class="bloc" style="min-width:180px">${sparkline(courbe, { w: 180, h: 44 })}<span class="lib tres-muet">Valeur sur 30 jours</span></div>
     </div>
 
@@ -2775,8 +2794,6 @@ function pagePortefeuille({ query }) {
 // Page Résultats (9.8) : gains à récupérer, gagnés, perdus, annulés, stats.
 // La récupération est le moment central : bouton unique, crédit après confirmation
 // « serveur » (simulée en Phase A), animation de transfert vers le solde.
-
-
 function carteClaim(c) {
   const e = etatClaim(c);
   const estRemboursement = c.type === "REMBOURSEMENT";
@@ -2868,12 +2885,12 @@ function pageResultats() {
     <div class="stats-grille">
       <div class="stat"><div class="val num vert">+${fmt(meilleurGain)}</div><div class="lib">Meilleur gain net</div></div>
       <div class="stat"><div class="val num rouge">${fmt(pirePerte)}</div><div class="lib">Pire perte</div></div>
-      <div class="stat"><div class="val num ${totalGagne + totalPerdu >= 0 ? "vert" : "rouge"}">${fmtSigne(totalGagne + totalPerdu)}</div><div class="lib">P&amp;L réalisé total</div></div>
+      <div class="stat"><div class="val num ${totalGagne + totalPerdu >= 0 ? "vert" : "rouge"}">${fmtSigne(totalGagne + totalPerdu)}</div><div class="lib">Résultat réalisé total</div></div>
       <div class="stat"><div class="val num">${nbGagnes} / ${nbGagnes + nbPerdus}</div><div class="lib">Taux de réussite (à lire avec la rentabilité)</div></div>
     </div>
     <div class="panneau"><h3>Rentabilité par thème et source</h3>
       <div class="defilement-x"><table class="tableau">
-        <thead><tr><th>Axe</th><th>Misé</th><th>P&amp;L réalisé</th><th>Rendement</th></tr></thead>
+        <thead><tr><th>Axe</th><th>Misé</th><th>Résultat réalisé</th><th>Rendement</th></tr></thead>
         <tbody>
           <tr><td>Politique</td><td class="num">500</td><td class="num vert">+740</td><td class="num vert">+148 %</td></tr>
           <tr><td>Espace</td><td class="num">250</td><td class="num vert">+427</td><td class="num vert">+171 %</td></tr>
@@ -2889,9 +2906,6 @@ function pageResultats() {
 
 /* ================= js/pages/favoris.js ================= */
 // Ma liste (9.9) : favoris, thèmes et régions suivis, filtres enregistrés, masqués.
-
-
-
 const ONGLETS_FAVORIS = [
   { cle: "evenements", lib: "Événements favoris" },
   { cle: "themes", lib: "Thèmes suivis" },
@@ -2945,8 +2959,6 @@ function pageFavoris({ query }) {
 // Paramètres (9.10) : deux niveaux, recherche de réglage, impacts hausse/baisse,
 // portée du changement, restauration. En Phase A les valeurs sont affichées mais
 // non persistées (le registre serveur versionné arrive en Phase C).
-
-
 const CATEGORIES = ["Économie", "Exécution", "Découverte", "Fraîcheur", "Notifications", "Interface"];
 
 const NOTIFS_MATRICE = [
@@ -3051,8 +3063,6 @@ function pageParametres({ query }) {
 
 /* ================= js/pages/notifications.js ================= */
 // Centre de notifications interne (18) : historique, marquer lu, liens directs.
-
-
 const ICONES = { claim: "✨", variation: "📈", cloture: "⏱", technique: "🛠️", decouverte: "🧭" };
 
 function pageNotifications() {
@@ -3086,14 +3096,12 @@ function pageNotifications() {
 //
 // Règle imposée par l'utilisateur : NE JAMAIS présenter le solde global d'Éclats
 // comme une performance. Le solde bouge avec les autres applications de
-// l'écosystème. Ici, tout est scopé à Éclats Marchés : gains/pertes, P&L, ROI
+// l'écosystème. Ici, tout est scopé à Éclats Marchés : gains/pertes, résultat, ROI
 // se calculent uniquement à partir de l'activité de trading de cette appli.
 //
 // Phase A : les valeurs calculables le sont réellement à partir des fixtures ;
 // les stats qui exigeraient un historique riche (calibration, calendrier,
 // séries) sont marquées « démonstration » et seront branchées en Phase C/D.
-
-
 function tuile(val, lib, classe = "") {
   return `<div class="stat"><div class="val num ${classe}">${val}</div><div class="lib">${echap(lib)}</div></div>`;
 }
@@ -3124,7 +3132,7 @@ function pageStats() {
   const remboursements = rembs.reduce((s, c) => s + c.montant, 0);
   const pertesSeches = perdus.reduce((s, d) => s + d.mise, 0);
 
-  // Courbe de P&L réalisé cumulé (scopée appli)
+  // Courbe de résultat réalisé cumulé (scopée appli)
   const evts = [
     ...gagnes.map((c) => ({ t: new Date(c.resoluAt).getTime(), d: c.montant - c.mise })),
     ...perdus.map((d) => ({ t: new Date(d.resoluAt).getTime(), d: d.perte }))
@@ -3163,7 +3171,7 @@ function pageStats() {
   const tableRentabilite = (titre, lignes) => `
     <div class="panneau"><h3>${titre}</h3>
       <div class="defilement-x"><table class="tableau">
-        <thead><tr><th>${echap(titre.replace("Rentabilité par ", ""))}</th><th>Misé</th><th>P&amp;L réalisé</th><th>Rendement</th></tr></thead>
+        <thead><tr><th>${echap(titre.replace("Rentabilité par ", ""))}</th><th>Misé</th><th>Résultat réalisé</th><th>Rendement</th></tr></thead>
         <tbody>${lignes.map((l) => `<tr>
           <td>${echap(l.axe)}</td>
           <td class="num">${fmt(l.mise)}</td>
@@ -3188,16 +3196,6 @@ function pageStats() {
   const semaines = 16;
   const heatmap = Array.from({ length: semaines * 7 }, jour);
 
-  // ---- Badges / jalons ----
-  const badges = [
-    { ico: "🎯", nom: "Premier pari", ok: true },
-    { ico: "🏆", nom: "Premier gain récupéré", ok: gagnes.some((c) => etat.claimsRecuperes.has(c.id)) },
-    { ico: "🔥", nom: "3 gains d'affilée", ok: nbG >= 3 },
-    { ico: "🌍", nom: "5 thèmes différents", ok: parTheme.length >= 5 },
-    { ico: "💎", nom: "Position tenue jusqu'à résolution", ok: true },
-    { ico: "⚡", nom: "10 marchés suivis", ok: etat.favoris.size >= 3 }
-  ];
-
   return `
     <h1>Statistiques</h1>
     <p class="muet" style="margin-top:-6px">Toutes ces stats ne concernent que votre activité sur Éclats Marchés.
@@ -3206,13 +3204,13 @@ function pageStats() {
     <div class="rangee-titre"><h2>📈 Résultat de trading</h2></div>
     <div class="panneau">
       <div class="stats-grille">
-        ${tuile(fmtSigne(pnlRealise), "P&L réalisé (appli)", pnlRealise >= 0 ? "vert" : "rouge")}
-        ${tuile(fmtSigne(Math.round(pnlLatent)), "P&L latent (positions ouvertes)", pnlLatent >= 0 ? "vert" : "rouge")}
-        ${tuile(fmtSigne(Math.round(pnlTotal)), "P&L total de l'appli", pnlTotal >= 0 ? "vert" : "rouge")}
+        ${tuile(fmtSigne(pnlRealise), "Résultat réalisé (appli)", pnlRealise >= 0 ? "vert" : "rouge")}
+        ${tuile(fmtSigne(Math.round(pnlLatent)), "Résultat latent (positions ouvertes)", pnlLatent >= 0 ? "vert" : "rouge")}
+        ${tuile(fmtSigne(Math.round(pnlTotal)), "Résultat total de l'appli", pnlTotal >= 0 ? "vert" : "rouge")}
         ${tuile(fmtSigne(Math.round(roi)) + " %", "ROI réalisé (sur mises)", roi >= 0 ? "vert" : "rouge")}
       </div>
       <div style="margin-top:14px">${sparkline(equity, { w: 320, h: 60 })}
-        <div class="lib tres-muet">P&L réalisé cumulé sur cette appli</div></div>
+        <div class="lib tres-muet">Résultat réalisé cumulé sur cette appli</div></div>
     </div>
 
     <div class="rangee-titre"><h2>◆ Éclats gagnés et perdus (appli)</h2></div>
@@ -3250,7 +3248,7 @@ function pageStats() {
 
     <div class="panneau"><h3>Rentabilité par horizon et par cote ${demoTag()}</h3>
       <div class="defilement-x"><table class="tableau">
-        <thead><tr><th>Découpage</th><th>Misé</th><th>P&amp;L</th><th>Rendement</th></tr></thead>
+        <thead><tr><th>Découpage</th><th>Misé</th><th>Résultat</th><th>Rendement</th></tr></thead>
         <tbody>
           <tr><td>Court terme (&lt; 24 h)</td><td class="num">450</td><td class="num vert">+312</td><td class="num vert">+69 %</td></tr>
           <tr><td>Moyen terme (&lt; 30 j)</td><td class="num">600</td><td class="num vert">+188</td><td class="num vert">+31 %</td></tr>
@@ -3304,33 +3302,90 @@ function pageStats() {
       ${tuile("Respectée " + demoTag(), "Limite d'exposition par marché")}
     </div></div>
 
-    <div class="rangee-titre"><h2>🏆 Jalons</h2></div>
-    <div class="badges">
-      ${badges.map((b) => `<div class="badge-jalon ${b.ok ? "obtenu" : "verrouille"}">
-        <span class="bj-ico">${b.ico}</span><span class="bj-nom">${echap(b.nom)}</span>
-        <span class="bj-etat">${b.ok ? "Obtenu" : "À débloquer"}</span>
-      </div>`).join("")}
-    </div>
-
     <p class="tres-muet" style="margin-top:20px">Les blocs marqués « démonstration » seront calculés sur votre historique réel dès que le trading sera branché (Phases C et D).</p>
   `;
 }
 
 
+/* ================= js/pages/succes.js ================= */
+function progression(valeur, cible) {
+  const atteint = valeur >= cible;
+  const pct = Math.min(100, Math.round((valeur / Math.max(1, cible)) * 100));
+  return { valeur, cible, atteint, pct };
+}
+
+function carteSucces(icone, nom, description, p) {
+  return `<div class="badge-jalon ${p.atteint ? "obtenu" : "verrouille"}">
+    <span class="bj-ico">${icone}</span>
+    <span class="bj-nom">${echap(nom)}</span>
+    <span class="bj-etat">${p.atteint ? "Obtenu" : `${p.valeur} / ${p.cible}`}</span>
+    <div class="succes-progression" aria-label="${p.pct} %"><span style="width:${p.pct}%"></span></div>
+    <small class="tres-muet">${echap(description)}</small>
+  </div>`;
+}
+
+function groupe(titre, aide, succes) {
+  const obtenus = succes.filter((s) => s[3].atteint).length;
+  return `<details class="panneau succes-groupe" open>
+    <summary><strong>${titre}</strong><span class="pastille">${obtenus} / ${succes.length}</span></summary>
+    <p class="tres-muet">${echap(aide)}</p>
+    <div class="badges">${succes.map((s) => carteSucces(...s)).join("")}</div>
+  </details>`;
+}
+
+function pageSucces() {
+  const gagnes = etat.claims.filter((c) => c.type === "GAIN");
+  const resolus = gagnes.length + etat.defaites.length;
+  const themes = new Set([
+    ...etat.positions.map((p) => marche(p.marcheId)?.theme),
+    ...etat.claims.map((c) => marche(c.marcheId)?.theme),
+    ...etat.defaites.map((d) => marche(d.marcheId)?.theme)
+  ].filter(Boolean));
+  const recuperes = etat.claims.filter((c) => etat.claimsRecuperes.has(c.id)).length;
+  const mouvements = etat.ledger.filter((l) => l.source.startsWith("marches_")).length;
+
+  const groupes = [
+    ["Premiers pas", "Découvrir le fonctionnement des marchés et du portefeuille.", [
+      ["🎯", "Premier pari", "Ouvrir une première position.", progression(etat.positions.length + resolus, 1)],
+      ["🏆", "Premier gain", "Résoudre un premier pari gagnant.", progression(gagnes.length, 1)],
+      ["✨", "Premier gain récupéré", "Transférer un gain vers le portefeuille.", progression(recuperes, 1)]
+    ]],
+    ["Exploration", "Élargir progressivement les sujets suivis.", [
+      ["⭐", "Curieux", "Suivre 3 marchés.", progression(etat.favoris.size, 3)],
+      ["🧭", "Explorateur", "Parier sur 3 thèmes différents.", progression(themes.size, 3)],
+      ["🌍", "Grand angle", "Parier sur 5 thèmes différents.", progression(themes.size, 5)]
+    ]],
+    ["Expérience", "Accumuler un historique suffisamment riche pour apprendre.", [
+      ["📘", "Apprenti", "Atteindre 5 paris résolus.", progression(resolus, 5)],
+      ["📚", "Habitué", "Atteindre 10 paris résolus.", progression(resolus, 10)],
+      ["🎓", "Vétéran", "Atteindre 25 paris résolus.", progression(resolus, 25)]
+    ]],
+    ["Résultats", "Transformer les bonnes prévisions en résultats récupérés.", [
+      ["🥉", "Un bon départ", "Obtenir 1 gain.", progression(gagnes.length, 1)],
+      ["🥈", "Série positive", "Obtenir 3 gains.", progression(gagnes.length, 3)],
+      ["🥇", "Confirmé", "Obtenir 10 gains.", progression(gagnes.length, 10)]
+    ]],
+    ["Discipline", "Construire un registre lisible et éviter les décisions sans contexte.", [
+      ["💎", "Jusqu'au verdict", "Conserver une position jusqu'à sa résolution.", progression(resolus, 1)],
+      ["🧾", "Historique fiable", "Créer 10 mouvements contextualisés.", progression(mouvements, 10)],
+      ["🛡️", "Diversifié", "Maintenir au moins 3 thèmes actifs.", progression(themes.size, 3)]
+    ]]
+  ];
+
+  const total = groupes.reduce((n, [, , succes]) => n + succes.length, 0);
+  const obtenus = groupes.reduce((n, [, , succes]) => n + succes.filter((s) => s[3].atteint).length, 0);
+  return `<h1>Succès</h1>
+    <div class="panneau">
+      <div class="rangee-titre"><h2>Progression globale</h2><strong>${obtenus} / ${total}</strong></div>
+      <div class="succes-progression grand"><span style="width:${Math.round(obtenus / total * 100)}%"></span></div>
+      <p class="muet">Les succès sont rangés par parcours. Les prochains objectifs restent visibles sans transformer chaque action en récompense immédiate.</p>
+    </div>
+    ${groupes.map((g) => groupe(...g)).join("")}`;
+}
+
+
 /* ================= js/app.js ================= */
 // Bootstrap du prototype Éclats Marchés (Phase A).
-
-
-
-
-
-
-
-
-
-
-
-
 
 // Architecture en 3 piliers. La sous-navigation dépend du pilier actif.
 const SOUS_NAV = {
@@ -3346,14 +3401,17 @@ const SOUS_NAV = {
   ],
   positions: [],
   portefeuille: [],
-  resultats: [],
+  resultats: [
+    { lib: "Résultats", href: "#/resultats", actif: (r) => r.page === "resultats" },
+    { lib: "Succès", href: "#/succes", actif: (r) => r.page === "succes" }
+  ],
   stats: []
 };
 
 function sectionPrimaire(page) {
   if (page === "enjeu") return "positions";
   if (page === "portefeuille") return "portefeuille";
-  if (page === "resultats") return "resultats";
+  if (page === "resultats" || page === "succes") return "resultats";
   if (page === "stats") return "stats";
   return "marches";
 }
@@ -3370,6 +3428,7 @@ enregistrer("favoris", pageFavoris);
 enregistrer("parametres", pageParametres);
 enregistrer("notifications", pageNotifications);
 enregistrer("stats", pageStats);
+enregistrer("succes", pageSucces);
 
 const contenu = document.getElementById("contenu");
 const rendre = demarrerRouteur(contenu, (r) => {
@@ -3393,13 +3452,13 @@ function majEntete() {
   badgeN.hidden = nonVues === 0;
   badgeN.textContent = nonVues;
 
-  // Badges de piliers : nombre de positions ouvertes, point si des gains attendent
-  document.querySelectorAll('[data-badge="positions"]').forEach((el) => {
+  // Positions : simple compteur informatif (combien de paris sont en cours).
+  document.querySelectorAll('[data-badge^="positions"]').forEach((el) => {
     el.hidden = etat.positions.length === 0;
     el.textContent = etat.positions.length;
   });
-  document.querySelectorAll('[data-badge="positions-m"]').forEach((el) => { el.hidden = etat.positions.length === 0; });
-  document.querySelectorAll('[data-badge="resultats"],[data-badge="resultats-m"]').forEach((el) => { el.hidden = claims <= 0; });
+  // Résultats : point doré uniquement quand des Éclats attendent d'être récupérés.
+  document.querySelectorAll('[data-badge^="resultats"]').forEach((el) => { el.hidden = claims <= 0; });
 
   const tr = document.getElementById("indicateur-tr");
   if (etat.sources.websocket.etat === "connecte") {

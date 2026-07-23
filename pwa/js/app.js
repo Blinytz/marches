@@ -12,6 +12,7 @@ import { pageFavoris } from "./pages/favoris.js";
 import { pageParametres } from "./pages/parametres.js";
 import { pageNotifications } from "./pages/notifications.js";
 import { pageStats } from "./pages/stats.js";
+import { pageSucces } from "./pages/succes.js";
 
 // Architecture en 3 piliers. La sous-navigation dépend du pilier actif.
 const SOUS_NAV = {
@@ -27,14 +28,17 @@ const SOUS_NAV = {
   ],
   positions: [],
   portefeuille: [],
-  resultats: [],
+  resultats: [
+    { lib: "Résultats", href: "#/resultats", actif: (r) => r.page === "resultats" },
+    { lib: "Succès", href: "#/succes", actif: (r) => r.page === "succes" }
+  ],
   stats: []
 };
 
 function sectionPrimaire(page) {
   if (page === "enjeu") return "positions";
   if (page === "portefeuille") return "portefeuille";
-  if (page === "resultats") return "resultats";
+  if (page === "resultats" || page === "succes") return "resultats";
   if (page === "stats") return "stats";
   return "marches";
 }
@@ -51,6 +55,7 @@ enregistrer("favoris", pageFavoris);
 enregistrer("parametres", pageParametres);
 enregistrer("notifications", pageNotifications);
 enregistrer("stats", pageStats);
+enregistrer("succes", pageSucces);
 
 const contenu = document.getElementById("contenu");
 const rendre = demarrerRouteur(contenu, (r) => {

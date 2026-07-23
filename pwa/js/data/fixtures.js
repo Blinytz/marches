@@ -483,15 +483,15 @@ export const DEFAITES = [
 
 // Registre de démonstration du portefeuille (les plus récents d'abord)
 export const LEDGER = [
-  { t: ilYA(10), montant: 251.34, source: "marches_vente", libelle: "Vente partielle · Shutdown NON" },
-  { t: ilYA(46), montant: -250, source: "marches_mise", libelle: "Achat OUI · Fed July" },
-  { t: ilYA(70), montant: -500, source: "marches_mise", libelle: "Achat NON · Shutdown" },
-  { t: ilYA(120), montant: -200, source: "marches_mise", libelle: "Achat NON · PSG Ligue 1" },
-  { t: ilYA(200), montant: -100, source: "marches_mise", libelle: "Achat OUI · Brent above 90" },
-  { t: ilYA(300), montant: -120, source: "marches_mise", libelle: "Achat OUI · Canicule 42C" },
-  { t: ilYA(690), montant: 412, source: "marches_gain", libelle: "Gain récupéré · Starship flight 11" },
-  { t: ilYA(750), montant: -150, source: "marches_mise", libelle: "Achat OUI · Starship flight 11" },
-  { t: ilYA(2000), montant: 5000, source: "paris_sportifs_gain", libelle: "Mouvement d'une autre app de l'écosystème" }
+  { t: ilYA(10), montant: 251.34, source: "marches_vente", marcheId: "pm-shutdown-31", libelle: "Vente partielle · Shutdown NON" },
+  { t: ilYA(46), montant: -250, source: "marches_mise", marcheId: "pm-fed-juillet", libelle: "Achat OUI · Fed July" },
+  { t: ilYA(70), montant: -500, source: "marches_mise", marcheId: "pm-shutdown-31", libelle: "Achat NON · Shutdown" },
+  { t: ilYA(120), montant: -200, source: "marches_mise", marcheId: "mf-psg-ligue1", libelle: "Achat NON · PSG Ligue 1" },
+  { t: ilYA(200), montant: -100, source: "marches_mise", marcheId: "pm-petrole-90", libelle: "Achat OUI · Brent above 90" },
+  { t: ilYA(300), montant: -120, source: "marches_mise", marcheId: "mf-canicule-juillet", libelle: "Achat OUI · Canicule 42C" },
+  { t: ilYA(690), montant: 412, source: "marches_gain", marcheId: "mf-spacex-lancement", libelle: "Gain récupéré · Starship flight 11" },
+  { t: ilYA(750), montant: -150, source: "marches_mise", marcheId: "mf-spacex-lancement", libelle: "Achat OUI · Starship flight 11" },
+  { t: ilYA(2000), montant: 5000, source: "paris_sportifs_gain", application: "Paris Sportifs", libelle: "Gain récupéré dans Paris Sportifs" }
 ];
 
 export const SOLDE_DEMO = 12450;

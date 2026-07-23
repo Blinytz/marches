@@ -2,7 +2,7 @@
 //
 // Règle imposée par l'utilisateur : NE JAMAIS présenter le solde global d'Éclats
 // comme une performance. Le solde bouge avec les autres applications de
-// l'écosystème. Ici, tout est scopé à Éclats Marchés : gains/pertes, P&L, ROI
+// l'écosystème. Ici, tout est scopé à Éclats Marchés : gains/pertes, résultat, ROI
 // se calculent uniquement à partir de l'activité de trading de cette appli.
 //
 // Phase A : les valeurs calculables le sont réellement à partir des fixtures ;
@@ -41,7 +41,7 @@ export function pageStats() {
   const remboursements = rembs.reduce((s, c) => s + c.montant, 0);
   const pertesSeches = perdus.reduce((s, d) => s + d.mise, 0);
 
-  // Courbe de P&L réalisé cumulé (scopée appli)
+  // Courbe de résultat réalisé cumulé (scopée appli)
   const evts = [
     ...gagnes.map((c) => ({ t: new Date(c.resoluAt).getTime(), d: c.montant - c.mise })),
     ...perdus.map((d) => ({ t: new Date(d.resoluAt).getTime(), d: d.perte }))
@@ -80,7 +80,7 @@ export function pageStats() {
   const tableRentabilite = (titre, lignes) => `
     <div class="panneau"><h3>${titre}</h3>
       <div class="defilement-x"><table class="tableau">
-        <thead><tr><th>${echap(titre.replace("Rentabilité par ", ""))}</th><th>Misé</th><th>P&amp;L réalisé</th><th>Rendement</th></tr></thead>
+        <thead><tr><th>${echap(titre.replace("Rentabilité par ", ""))}</th><th>Misé</th><th>Résultat réalisé</th><th>Rendement</th></tr></thead>
         <tbody>${lignes.map((l) => `<tr>
           <td>${echap(l.axe)}</td>
           <td class="num">${fmt(l.mise)}</td>
@@ -105,16 +105,6 @@ export function pageStats() {
   const semaines = 16;
   const heatmap = Array.from({ length: semaines * 7 }, jour);
 
-  // ---- Badges / jalons ----
-  const badges = [
-    { ico: "🎯", nom: "Premier pari", ok: true },
-    { ico: "🏆", nom: "Premier gain récupéré", ok: gagnes.some((c) => etat.claimsRecuperes.has(c.id)) },
-    { ico: "🔥", nom: "3 gains d'affilée", ok: nbG >= 3 },
-    { ico: "🌍", nom: "5 thèmes différents", ok: parTheme.length >= 5 },
-    { ico: "💎", nom: "Position tenue jusqu'à résolution", ok: true },
-    { ico: "⚡", nom: "10 marchés suivis", ok: etat.favoris.size >= 3 }
-  ];
-
   return `
     <h1>Statistiques</h1>
     <p class="muet" style="margin-top:-6px">Toutes ces stats ne concernent que votre activité sur Éclats Marchés.
@@ -123,13 +113,13 @@ export function pageStats() {
     <div class="rangee-titre"><h2>📈 Résultat de trading</h2></div>
     <div class="panneau">
       <div class="stats-grille">
-        ${tuile(fmtSigne(pnlRealise), "P&L réalisé (appli)", pnlRealise >= 0 ? "vert" : "rouge")}
-        ${tuile(fmtSigne(Math.round(pnlLatent)), "P&L latent (positions ouvertes)", pnlLatent >= 0 ? "vert" : "rouge")}
-        ${tuile(fmtSigne(Math.round(pnlTotal)), "P&L total de l'appli", pnlTotal >= 0 ? "vert" : "rouge")}
+        ${tuile(fmtSigne(pnlRealise), "Résultat réalisé (appli)", pnlRealise >= 0 ? "vert" : "rouge")}
+        ${tuile(fmtSigne(Math.round(pnlLatent)), "Résultat latent (positions ouvertes)", pnlLatent >= 0 ? "vert" : "rouge")}
+        ${tuile(fmtSigne(Math.round(pnlTotal)), "Résultat total de l'appli", pnlTotal >= 0 ? "vert" : "rouge")}
         ${tuile(fmtSigne(Math.round(roi)) + " %", "ROI réalisé (sur mises)", roi >= 0 ? "vert" : "rouge")}
       </div>
       <div style="margin-top:14px">${sparkline(equity, { w: 320, h: 60 })}
-        <div class="lib tres-muet">P&L réalisé cumulé sur cette appli</div></div>
+        <div class="lib tres-muet">Résultat réalisé cumulé sur cette appli</div></div>
     </div>
 
     <div class="rangee-titre"><h2>◆ Éclats gagnés et perdus (appli)</h2></div>
@@ -167,7 +157,7 @@ export function pageStats() {
 
     <div class="panneau"><h3>Rentabilité par horizon et par cote ${demoTag()}</h3>
       <div class="defilement-x"><table class="tableau">
-        <thead><tr><th>Découpage</th><th>Misé</th><th>P&amp;L</th><th>Rendement</th></tr></thead>
+        <thead><tr><th>Découpage</th><th>Misé</th><th>Résultat</th><th>Rendement</th></tr></thead>
         <tbody>
           <tr><td>Court terme (&lt; 24 h)</td><td class="num">450</td><td class="num vert">+312</td><td class="num vert">+69 %</td></tr>
           <tr><td>Moyen terme (&lt; 30 j)</td><td class="num">600</td><td class="num vert">+188</td><td class="num vert">+31 %</td></tr>
@@ -220,14 +210,6 @@ export function pageStats() {
       ${tuile(parTheme.length + " thèmes", "Diversification")}
       ${tuile("Respectée " + demoTag(), "Limite d'exposition par marché")}
     </div></div>
-
-    <div class="rangee-titre"><h2>🏆 Jalons</h2></div>
-    <div class="badges">
-      ${badges.map((b) => `<div class="badge-jalon ${b.ok ? "obtenu" : "verrouille"}">
-        <span class="bj-ico">${b.ico}</span><span class="bj-nom">${echap(b.nom)}</span>
-        <span class="bj-etat">${b.ok ? "Obtenu" : "À débloquer"}</span>
-      </div>`).join("")}
-    </div>
 
     <p class="tres-muet" style="margin-top:20px">Les blocs marqués « démonstration » seront calculés sur votre historique réel dès que le trading sera branché (Phases C et D).</p>
   `;

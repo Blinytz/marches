@@ -35,6 +35,7 @@ const MODULES = [
   "js/pages/parametres.js",
   "js/pages/notifications.js",
   "js/pages/stats.js",
+  "js/pages/succes.js",
   "js/app.js"
 ];
 

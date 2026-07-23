@@ -60,7 +60,7 @@ function cartePosition(pos, deplie) {
         <span class="val num">${fmt(pos.probEntree * 100)} → ${p != null ? fmt(p * 100) : "?"}
         ${deltaPts != null ? `<span class="${favorable ? "vert" : "rouge"}">(${fmtSigne(deltaPts)} pts)</span>` : ""}</span></div>
       <div class="bloc"><span class="lib">Valeur actuelle</span><span class="val num">${val != null ? fmt(val) : "?"}</span></div>
-      <div class="bloc"><span class="lib">P&amp;L latent</span>
+      <div class="bloc"><span class="lib">Résultat latent</span>
         <span class="val num ${pl >= 0 ? "vert" : "rouge"}">${pl != null ? `${fmtSigne(pl)} (${fmtSigne(plPctv)} %)` : "?"}</span></div>
       <div class="bloc"><span class="lib">Paiement potentiel</span><span class="val num">${fmt(paiement)}</span></div>
       ${sparkline(histo, { depuis: new Date(pos.achatAt).getTime(), ligne: pos.probEntree })}
@@ -103,7 +103,7 @@ export function pageEnjeu({ query }) {
   const positions = etat.positions;
   if (!positions.length) {
     return `<h1>Mes positions</h1>` + etatVide("🎯", "Aucune position ouverte",
-      "Achetez OUI ou NON sur un marché : votre position vivra ici, avec sa courbe, son P&L et son échéance.",
+      "Achetez OUI ou NON sur un marché : votre position vivra ici, avec sa courbe, son résultat et son échéance.",
       `<a class="btn btn-principal" href="#/recherche?horizon=24&tradable=1">Voir les marchés courts</a>`);
   }
 
@@ -144,7 +144,7 @@ export function pageEnjeu({ query }) {
       <div class="bloc"><span class="lib muet">Positions ouvertes</span><div class="val num" style="font-size:1.25rem; font-weight:700">${positions.length}</div></div>
       <div class="bloc"><span class="lib muet">Encore exposé</span><div class="val num" style="font-size:1.25rem; font-weight:700">${fmt(totalExpose)}</div></div>
       <div class="bloc"><span class="lib muet">Valeur liquidative</span><div class="val num" style="font-size:1.25rem; font-weight:700">${fmt(totalValeur)}</div></div>
-      <div class="bloc"><span class="lib muet">P&amp;L latent</span><div class="val num ${totalPl >= 0 ? "vert" : "rouge"}" style="font-size:1.25rem; font-weight:700">${fmtSigne(totalPl)} (${fmtSigne((totalPl / totalExpose) * 100)} %)</div></div>
+      <div class="bloc"><span class="lib muet">Résultat latent</span><div class="val num ${totalPl >= 0 ? "vert" : "rouge"}" style="font-size:1.25rem; font-weight:700">${fmtSigne(totalPl)} (${fmtSigne((totalPl / totalExpose) * 100)} %)</div></div>
       <div class="bloc"><span class="lib muet">Paiement maximal</span><div class="val num" style="font-size:1.25rem; font-weight:700">${fmt(paiementMax)}</div></div>
       <div class="bloc"><span class="lib muet">Prochaine échéance</span><div class="val compte-rebours" data-rebours="${prochaine || ""}">${prochaine ? compteReboursCourt(prochaine) : "?"}</div></div>
       <div class="bloc"><span class="lib muet">Favorables / défavorables</span><div class="val num"><span class="vert">${favorables}</span> / <span class="rouge">${positions.length - favorables}</span></div></div>
@@ -155,7 +155,7 @@ export function pageEnjeu({ query }) {
     </div>
     <div class="chips">
       <span class="tres-muet" style="align-self:center">Trier :</span>
-      ${[["echeance", "Échéance"], ["pl", "Meilleur P&L"], ["pire", "Pire P&L"], ["enjeu", "Plus gros enjeu"]].map(([c, l]) =>
+      ${[["echeance", "Échéance"], ["pl", "Meilleur résultat"], ["pire", "Pire résultat"], ["enjeu", "Plus gros enjeu"]].map(([c, l]) =>
         `<a class="chip ${tri === c ? "actif" : ""}" href="#/enjeu?seg=${segment}&tri=${c}">${l}</a>`).join("")}
     </div>
 

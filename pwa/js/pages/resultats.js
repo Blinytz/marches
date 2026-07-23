@@ -95,12 +95,12 @@ export function pageResultats() {
     <div class="stats-grille">
       <div class="stat"><div class="val num vert">+${fmt(meilleurGain)}</div><div class="lib">Meilleur gain net</div></div>
       <div class="stat"><div class="val num rouge">${fmt(pirePerte)}</div><div class="lib">Pire perte</div></div>
-      <div class="stat"><div class="val num ${totalGagne + totalPerdu >= 0 ? "vert" : "rouge"}">${fmtSigne(totalGagne + totalPerdu)}</div><div class="lib">P&amp;L réalisé total</div></div>
+      <div class="stat"><div class="val num ${totalGagne + totalPerdu >= 0 ? "vert" : "rouge"}">${fmtSigne(totalGagne + totalPerdu)}</div><div class="lib">Résultat réalisé total</div></div>
       <div class="stat"><div class="val num">${nbGagnes} / ${nbGagnes + nbPerdus}</div><div class="lib">Taux de réussite (à lire avec la rentabilité)</div></div>
     </div>
     <div class="panneau"><h3>Rentabilité par thème et source</h3>
       <div class="defilement-x"><table class="tableau">
-        <thead><tr><th>Axe</th><th>Misé</th><th>P&amp;L réalisé</th><th>Rendement</th></tr></thead>
+        <thead><tr><th>Axe</th><th>Misé</th><th>Résultat réalisé</th><th>Rendement</th></tr></thead>
         <tbody>
           <tr><td>Politique</td><td class="num">500</td><td class="num vert">+740</td><td class="num vert">+148 %</td></tr>
           <tr><td>Espace</td><td class="num">250</td><td class="num vert">+427</td><td class="num vert">+171 %</td></tr>

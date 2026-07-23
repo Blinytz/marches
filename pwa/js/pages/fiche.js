@@ -49,7 +49,7 @@ function encartPosition(m, pos, t) {
     <div class="tp-chiffres">
       <span>${fmt(pos.parts)} parts</span><span>·</span>
       <span>valeur ${val != null ? fmt(val) : "?"}</span><span>·</span>
-      <span class="${pl >= 0 ? "vert" : "rouge"}">P&amp;L ${pl != null ? fmtSigne(pl) : "?"}</span>
+      <span class="${pl >= 0 ? "vert" : "rouge"}">Résultat ${pl != null ? fmtSigne(pl) : "?"}</span>
     </div>
     <div class="ticket-actions-pos">
       <button class="btn ${t.mode === "achat" ? "btn-principal" : "btn-discret"}" data-ticket="renforcer">Renforcer</button>

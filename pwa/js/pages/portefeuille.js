@@ -1,5 +1,5 @@
 // Portefeuille (9.7) : vision patrimoniale globale + registre d'Éclats.
-import { etat, totalARecuperer } from "../etat.js";
+import { etat, totalARecuperer, marche } from "../etat.js";
 import { echap, fmt, fmtEclats, fmtSigne, etatVide, valeurPosition, sparkline } from "../ui.js";
 
 const ONGLETS_PORTEFEUILLE = [
@@ -36,29 +36,40 @@ export function pagePortefeuille({ query }) {
           Les gains à récupérer n'y entrent qu'après le clic « Récupérer » dans Résultats.</p>
       </div>
       <div class="panneau"><h3>Positions ouvertes</h3>
-        <p class="muet">Le suivi détaillé (courbes, lots, P&amp;L) vit dans <a href="#/enjeu" style="text-decoration:underline">En jeu</a>.</p>
+        <p class="muet">Le suivi détaillé (courbes, lots, résultat) vit dans <a href="#/enjeu" style="text-decoration:underline">Positions</a>.</p>
       </div>`,
     ordres: etatVide("🧾", "Aucun ordre en attente",
       "Les ordres au marché s'exécutent immédiatement. Les ordres limités locaux arriveront dans une version future (modèle prévu, non activé)."),
     historique: `<div class="carte liste-compacte">
       ${etat.positions.flatMap((p) => p.chronologie.map((c) => ({ ...c, pos: p })))
         .sort((a, b) => new Date(b.t) - new Date(a.t))
-        .map((c) => `<div class="ligne-compacte">
+        .map((c) => {
+          const m = marche(c.pos.marcheId);
+          return `<a class="ligne-compacte" href="#/marche/${c.pos.marcheId}">
           <span class="tres-muet" style="width:110px">${new Date(c.t).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
-          <span class="carte-titre" style="flex:1">${echap(c.texte)}</span>
-        </div>`).join("")}</div>`,
+          <span style="flex:1"><strong>${echap(m?.titleOriginal || "Marché inconnu")}</strong><br>
+            <span class="tres-muet">${echap(c.pos.issueLabel)} · ${echap(c.texte)}</span></span>
+          <span class="pastille">${echap(m?.source || "Source inconnue")}</span>
+        </a>`;
+        }).join("")}</div>`,
     registre: `<div class="defilement-x"><table class="tableau">
       <thead><tr><th>Date</th><th>Libellé</th><th>Source</th><th>Montant</th></tr></thead>
       <tbody>
-      ${etat.ledger.map((l) => `<tr>
+      ${etat.ledger.map((l) => {
+        const m = l.marcheId ? marche(l.marcheId) : null;
+        const contexte = m
+          ? `<a href="#/marche/${m.id}">${echap(m.titleOriginal)}</a>`
+          : echap(l.application || "Autre application");
+        return `<tr>
         <td class="tres-muet">${new Date(l.t).toLocaleString("fr-FR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
-        <td>${echap(l.libelle)}</td>
-        <td class="tres-muet">${echap(l.source)}</td>
+        <td>${echap(l.libelle)}<br><span class="tres-muet">${contexte}</span></td>
+        <td><span class="pastille">${echap(l.source)}</span></td>
         <td class="num ${l.montant >= 0 ? "vert" : "rouge"}">${fmtSigne(l.montant)}</td>
-      </tr>`).join("")}
+      </tr>`;
+      }).join("")}
       </tbody></table></div>
-      <p class="tres-muet">Registre partagé de l'écosystème : chaque app y écrit ses mouvements via sa propre source.
-        Écriture toujours côté serveur, jamais depuis le navigateur.</p>`
+      <p class="tres-muet">Chaque ligne indique l'application ou le marché à l'origine du mouvement. Une mise retire des Éclats,
+        une vente ou un gain récupéré en ajoute. Dans la version connectée, ces écritures seront créées uniquement côté serveur.</p>`
   };
 
   return `
@@ -68,8 +79,8 @@ export function pagePortefeuille({ query }) {
       <div class="bloc"><span class="lib muet">Disponibles</span><div class="val num" style="font-size:1.15rem; font-weight:700">${fmt(etat.solde)}</div></div>
       <div class="bloc"><span class="lib muet">Positions</span><div class="val num" style="font-size:1.15rem; font-weight:700">${fmt(valPositions)}</div></div>
       <div class="bloc"><span class="lib muet">À récupérer</span><div class="val num orange" style="font-size:1.15rem; font-weight:700">${fmt(aRecuperer)}</div></div>
-      <div class="bloc"><span class="lib muet">P&amp;L aujourd'hui</span><div class="val num vert">${fmtSigne(plJour)}</div></div>
-      <div class="bloc"><span class="lib muet">P&amp;L total</span><div class="val num ${plTotal >= 0 ? "vert" : "rouge"}">${fmtSigne(plTotal)}</div></div>
+      <div class="bloc"><span class="lib muet">Résultat aujourd'hui</span><div class="val num vert">${fmtSigne(plJour)}</div></div>
+      <div class="bloc"><span class="lib muet">Résultat total</span><div class="val num ${plTotal >= 0 ? "vert" : "rouge"}">${fmtSigne(plTotal)}</div></div>
       <div class="bloc" style="min-width:180px">${sparkline(courbe, { w: 180, h: 44 })}<span class="lib tres-muet">Valeur sur 30 jours</span></div>
     </div>
 

@@ -120,6 +120,7 @@ export function recupererClaim(id) {
         t: new Date().toISOString(),
         montant: c.montant,
         source: c.type === "REMBOURSEMENT" ? "marches_remboursement" : "marches_gain",
+        marcheId: c.marcheId,
         libelle: (c.type === "REMBOURSEMENT" ? "Remboursement récupéré · " : "Gain récupéré · ") + c.titre
       });
       notifier();
