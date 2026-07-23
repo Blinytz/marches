@@ -74,13 +74,13 @@ function majEntete() {
   badgeN.hidden = nonVues === 0;
   badgeN.textContent = nonVues;
 
-  // Badges de piliers : nombre de positions ouvertes, point si des gains attendent
-  document.querySelectorAll('[data-badge="positions"]').forEach((el) => {
+  // Positions : simple compteur informatif (combien de paris sont en cours).
+  document.querySelectorAll('[data-badge^="positions"]').forEach((el) => {
     el.hidden = etat.positions.length === 0;
     el.textContent = etat.positions.length;
   });
-  document.querySelectorAll('[data-badge="positions-m"]').forEach((el) => { el.hidden = etat.positions.length === 0; });
-  document.querySelectorAll('[data-badge="resultats"],[data-badge="resultats-m"]').forEach((el) => { el.hidden = claims <= 0; });
+  // Résultats : point doré uniquement quand des Éclats attendent d'être récupérés.
+  document.querySelectorAll('[data-badge^="resultats"]').forEach((el) => { el.hidden = claims <= 0; });
 
   const tr = document.getElementById("indicateur-tr");
   if (etat.sources.websocket.etat === "connecte") {

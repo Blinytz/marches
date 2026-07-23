@@ -151,6 +151,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
 .solde { font-weight: 800; white-space: nowrap; color: var(--eclats-fonce); }
 .solde-claims { font-size: 0.68rem; font-weight: 700; color: var(--accent); white-space: nowrap; }
 
+/* Badge de notifications non vues (alerte) */
 .badge-compte {
   position: absolute; top: -7px; right: -9px;
   background: var(--accent-2); color: white;
@@ -158,8 +159,18 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
   border-radius: var(--r-pill); padding: 1px 6px;
   box-shadow: 0 2px 6px rgba(255, 95, 162, 0.5);
 }
-#nav-sections .badge-compte, #nav-mobile .badge-point { position: static; margin-left: 5px; box-shadow: none; }
-.badge-point { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); }
+/* Compteur informatif (nombre de positions ouvertes) : neutre, pas une alerte */
+.badge-nombre {
+  display: inline-block; background: var(--accent-soft); color: var(--accent);
+  font-size: 0.66rem; font-weight: 800; border-radius: var(--r-pill);
+  padding: 1px 7px; margin-left: 6px;
+}
+#nav-principale a.actif .badge-nombre { background: rgba(255, 255, 255, 0.28); color: #fff; }
+#nav-mobile .badge-nombre { position: absolute; top: 4px; right: 50%; transform: translateX(24px); margin: 0; }
+/* Point d'action : uniquement quand quelque chose vous attend (Éclats à récupérer) */
+.badge-point { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--accent-2); margin-left: 6px; }
+.badge-point.or { background: var(--eclats); box-shadow: 0 0 0 3px var(--eclats-soft); }
+#nav-mobile .badge-point { position: absolute; top: 6px; right: 50%; transform: translateX(20px); margin: 0; }
 
 /* ============ Navigation en 3 piliers (desktop) ============ */
 
@@ -182,8 +193,10 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
 #nav-principale a.actif { color: #fff; background: var(--grad-accent); box-shadow: var(--ombre-accent); }
 #nav-principale a:not(.actif):hover { color: var(--accent); background: var(--accent-soft); }
 .np-ico { font-size: 1.08rem; line-height: 1; }
+/* L'Éclat est la monnaie : il reste doré en toutes circonstances, y compris
+   quand l'onglet est sélectionné (sur la pastille violette, l'or ressort bien). */
 .np-ico.eclat, .mnav-ico.eclat { color: var(--eclats); }
-#nav-principale a.actif .np-ico.eclat, #nav-mobile a.actif .mnav-ico.eclat { color: #fff; }
+#nav-principale a.actif .np-ico.eclat { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
 
 /* Sous-navigation contextuelle */
 #sous-nav {
@@ -231,7 +244,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
   flex: 1; min-width: 0;
   display: flex; flex-direction: column; align-items: center; gap: 3px;
   padding: 9px 2px 11px;
-  font-size: 0.63rem; font-weight: 600;
+  font-size: 0.56rem; font-weight: 700; letter-spacing: -0.01em;
   color: var(--text-3);
   min-height: 48px;
   position: relative;
