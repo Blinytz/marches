@@ -97,12 +97,12 @@ function cartePosition(pos, deplie) {
 
 export function pageEnjeu({ query }) {
   if (etat.demo.chargement) {
-    return `<h1>En jeu</h1><div class="enjeu-entete skeleton" style="height:90px"></div>
+    return `<h1>Mes positions</h1><div class="enjeu-entete skeleton" style="height:90px"></div>
       ${Array(3).fill('<div class="carte skeleton" style="height:150px; margin-top:12px"></div>').join("")}`;
   }
   const positions = etat.positions;
   if (!positions.length) {
-    return `<h1>En jeu</h1>` + etatVide("🎯", "Aucune position ouverte",
+    return `<h1>Mes positions</h1>` + etatVide("🎯", "Aucune position ouverte",
       "Achetez OUI ou NON sur un marché : votre position vivra ici, avec sa courbe, son P&L et son échéance.",
       `<a class="btn btn-principal" href="#/recherche?horizon=24&tradable=1">Voir les marchés courts</a>`);
   }
@@ -139,7 +139,7 @@ export function pageEnjeu({ query }) {
   const compteSeg = (s) => s === "recuperer" ? claims.length : s === "tous" ? enrichies.length : enrichies.filter((x) => x.seg === s).length;
 
   return `
-    <h1>En jeu</h1>
+    <h1>Mes positions</h1>
     <div class="enjeu-entete">
       <div class="bloc"><span class="lib muet">Positions ouvertes</span><div class="val num" style="font-size:1.25rem; font-weight:700">${positions.length}</div></div>
       <div class="bloc"><span class="lib muet">Encore exposé</span><div class="val num" style="font-size:1.25rem; font-weight:700">${fmt(totalExpose)}</div></div>

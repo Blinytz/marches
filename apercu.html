@@ -163,32 +163,57 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
 #nav-sections .badge-compte, #nav-mobile .badge-point { position: static; margin-left: 5px; box-shadow: none; }
 .badge-point { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent-2); }
 
-/* ===================== Navigation sections (desktop) ===================== */
+/* ============ Navigation en 3 piliers (desktop) ============ */
 
-#nav-sections {
+#nav-principale {
   position: sticky; top: 64px; z-index: 30;
-  display: flex; gap: 6px;
-  height: 52px; align-items: center;
-  padding: 0 12px;
-  background: rgba(255, 255, 255, 0.7);
+  display: flex; gap: 8px; align-items: center;
+  height: 54px; padding: 0 12px;
+  background: rgba(255, 255, 255, 0.72);
   backdrop-filter: blur(14px);
   border-bottom: 1px solid var(--border);
-  overflow-x: auto; scrollbar-width: none;
 }
-#nav-sections::-webkit-scrollbar { display: none; }
-#nav-sections a {
-  color: var(--text-2); font-weight: 600;
-  padding: 7px 14px; border-radius: var(--r-pill);
-  white-space: nowrap; font-size: 0.9rem;
+#nav-principale a {
+  display: inline-flex; align-items: center; gap: 8px;
+  color: var(--text-2); font-weight: 700; font-size: 0.96rem;
+  padding: 9px 18px; border-radius: var(--r-pill); position: relative;
   transition: background 120ms, color 120ms;
 }
-#nav-sections a.actif { color: #fff; background: var(--grad-accent); box-shadow: var(--ombre-accent); }
-#nav-sections a:not(.actif):hover { color: var(--accent); background: var(--accent-soft); }
+#nav-principale a.actif { color: #fff; background: var(--grad-accent); box-shadow: var(--ombre-accent); }
+#nav-principale a:not(.actif):hover { color: var(--accent); background: var(--accent-soft); }
+.np-ico { font-size: 1.08rem; line-height: 1; }
+.np-ico.eclat, .mnav-ico.eclat { color: var(--eclats); }
+#nav-principale a.actif .np-ico.eclat, #nav-mobile a.actif .mnav-ico.eclat { color: #fff; }
+
+/* Sous-navigation contextuelle */
+#sous-nav {
+  position: sticky; top: 118px; z-index: 29;
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+#sous-nav:empty { display: none; }
+#sous-nav a {
+  color: var(--text-2); font-weight: 600; font-size: 0.85rem;
+  padding: 6px 14px; border-radius: var(--r-pill);
+  background: var(--surface-1); box-shadow: inset 0 0 0 1.5px var(--border);
+  transition: color 120ms, box-shadow 120ms, background 120ms;
+}
+#sous-nav a.actif { color: var(--accent); background: var(--accent-soft); box-shadow: inset 0 0 0 1.5px var(--accent); }
+#sous-nav a:not(.actif):hover { color: var(--accent); box-shadow: inset 0 0 0 1.5px var(--accent); }
+
+#btn-recherche-mobile { display: none; font-size: 1.15rem; line-height: 1; }
+
 @media (max-width: 767px) {
-  #entete { height: 58px; }
-  #nav-sections { top: 58px; height: 48px; }
+  #entete { height: 58px; gap: 10px; }
+  #nav-principale { display: none; }
+  #sous-nav { top: 58px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  #sous-nav::-webkit-scrollbar { display: none; }
+  #sous-nav a { white-space: nowrap; }
   .logo-texte, #recherche-globale, .indicateur-tr { display: none; }
-  #entete { gap: 10px; }
+  #btn-recherche-mobile { display: inline-flex; }
 }
 
 /* ===================== Navigation mobile ===================== */
@@ -627,6 +652,43 @@ a.carte:hover, .carte-marche:hover { transform: translateY(-3px); box-shadow: va
 
 /* ===================== Divers ===================== */
 
+/* ===================== Statistiques ===================== */
+
+.calib { display: flex; flex-direction: column; gap: 9px; margin-top: 10px; }
+.calib-ligne { display: flex; align-items: center; gap: 12px; }
+.calib-plage { width: 84px; font-size: 0.78rem; color: var(--text-2); font-weight: 600; flex-shrink: 0; }
+.calib-barres { flex: 1; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.calib-barre { height: 15px; border-radius: var(--r-pill); display: flex; align-items: center; min-width: 30px; transition: width 400ms ease; }
+.calib-barre span { font-size: 0.66rem; font-weight: 700; padding-left: 7px; color: #fff; }
+.calib-barre.predit { background: var(--grad-accent); }
+.calib-barre.reel { background: var(--eclats); }
+.calib-barre.reel span { color: #4a2e00; }
+
+.heatmap {
+  display: grid; grid-template-rows: repeat(7, 15px); grid-auto-flow: column; grid-auto-columns: 15px;
+  gap: 4px; margin-top: 8px; width: max-content; max-width: 100%; overflow-x: auto;
+}
+.hm-case { width: 15px; height: 15px; border-radius: 4px; display: inline-block; }
+.hm-0 { background: var(--surface-3); }
+.hm-1 { background: #C9BEFB; }
+.hm-2 { background: #A99BF7; }
+.hm-3 { background: #8168F2; }
+.hm-4 { background: var(--accent); }
+.hm-legende { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+.hm-legende .hm-case { width: 12px; height: 12px; aspect-ratio: auto; }
+
+.badges { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; }
+.badge-jalon {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center;
+  background: var(--surface-1); border-radius: 15px; padding: 14px 10px; box-shadow: var(--ombre-1);
+}
+.badge-jalon.verrouille { opacity: 0.55; filter: grayscale(0.7); }
+.bj-ico { font-size: 1.7rem; }
+.badge-jalon.obtenu .bj-ico { filter: drop-shadow(0 2px 6px rgba(245, 165, 24, 0.5)); }
+.bj-nom { font-weight: 700; font-size: 0.82rem; }
+.bj-etat { font-size: 0.7rem; font-weight: 700; color: var(--text-3); }
+.badge-jalon.obtenu .bj-etat { color: var(--eclats-fonce); }
+
 .deux-colonnes { display: grid; gap: 16px; }
 @media (min-width: 900px) { .deux-colonnes { grid-template-columns: 1fr 1fr; } }
 
@@ -666,6 +728,7 @@ html { background: var(--bg); }
     </div>
     <div class="entete-droite">
       <span id="indicateur-tr" class="indicateur-tr" title="Connexion temps réel">⚡ <span>En direct</span></span>
+      <a id="btn-recherche-mobile" href="#/recherche" title="Rechercher" aria-label="Rechercher">🔍</a>
       <a id="bouton-notifs" href="#/notifications" title="Notifications">🔔<span id="badge-notifs" class="badge-compte" hidden></span></a>
       <a id="bloc-solde" href="#/portefeuille" title="Portefeuille">
         <span id="solde-valeur" class="solde">◇ …</span>
@@ -674,26 +737,25 @@ html { background: var(--bg); }
     </div>
   </header>
 
-  <nav id="nav-sections" aria-label="Sections">
-    <a href="#/accueil" data-section="accueil">Pour moi</a>
-    <a href="#/recherche?horizon=24" data-section="24h">24 h</a>
-    <a href="#/recherche?region=France%20%26%20Europe" data-section="fr-eu">France &amp; Europe</a>
-    <a href="#/recherche?tri=nouveau" data-section="nouveaux">Nouveaux</a>
-    <a href="#/recherche?tri=volume" data-section="populaires">Populaires</a>
-    <a href="#/recherche?vue=themes" data-section="themes">Thèmes</a>
-    <a href="#/enjeu" data-section="enjeu">En jeu<span id="badge-enjeu" class="badge-compte" hidden></span></a>
-    <a href="#/favoris" data-section="favoris">Ma liste</a>
+  <!-- Navigation en 3 piliers : Marchés · Mes positions · Portefeuille (desktop) -->
+  <nav id="nav-principale" aria-label="Sections principales">
+    <a href="#/accueil" data-primaire="marches"><span class="np-ico">🏛️</span>Marchés</a>
+    <a href="#/enjeu" data-primaire="positions"><span class="np-ico">🎯</span>Mes positions<span class="badge-compte" data-badge="positions" hidden></span></a>
+    <a href="#/portefeuille" data-primaire="portefeuille"><span class="np-ico eclat">◆</span>Portefeuille<span class="badge-point" data-badge="portefeuille" hidden></span></a>
   </nav>
+
+  <!-- Sous-navigation contextuelle (dépend du pilier actif), rendue par app.js -->
+  <div id="sous-nav" aria-label="Sous-sections"></div>
 
   <div id="bandeaux"></div>
 
   <main id="contenu" tabindex="-1"></main>
 
+  <!-- Barre basse mobile : mêmes 3 piliers -->
   <nav id="nav-mobile" aria-label="Navigation principale">
-    <a href="#/accueil" data-mnav="marches"><span class="mnav-ico">🏛️</span>Marchés</a>
-    <a href="#/recherche" data-mnav="recherche"><span class="mnav-ico">🔍</span>Recherche</a>
-    <a href="#/portefeuille" data-mnav="portefeuille"><span class="mnav-ico">◇</span>Portefeuille</a>
-    <a href="#/resultats" data-mnav="resultats"><span class="mnav-ico">🏆</span>Résultats<span id="badge-resultats" class="badge-point" hidden></span></a>
+    <a href="#/accueil" data-primaire="marches"><span class="mnav-ico">🏛️</span>Marchés</a>
+    <a href="#/enjeu" data-primaire="positions"><span class="mnav-ico">🎯</span>Positions<span class="badge-point" data-badge="positions-m" hidden></span></a>
+    <a href="#/portefeuille" data-primaire="portefeuille"><span class="mnav-ico eclat">◆</span>Portefeuille<span class="badge-point" data-badge="portefeuille-m" hidden></span></a>
   </nav>
 
   <div id="voile" hidden></div>
@@ -2542,12 +2604,12 @@ function cartePosition(pos, deplie) {
 
 function pageEnjeu({ query }) {
   if (etat.demo.chargement) {
-    return `<h1>En jeu</h1><div class="enjeu-entete skeleton" style="height:90px"></div>
+    return `<h1>Mes positions</h1><div class="enjeu-entete skeleton" style="height:90px"></div>
       ${Array(3).fill('<div class="carte skeleton" style="height:150px; margin-top:12px"></div>').join("")}`;
   }
   const positions = etat.positions;
   if (!positions.length) {
-    return `<h1>En jeu</h1>` + etatVide("🎯", "Aucune position ouverte",
+    return `<h1>Mes positions</h1>` + etatVide("🎯", "Aucune position ouverte",
       "Achetez OUI ou NON sur un marché : votre position vivra ici, avec sa courbe, son P&L et son échéance.",
       `<a class="btn btn-principal" href="#/recherche?horizon=24&tradable=1">Voir les marchés courts</a>`);
   }
@@ -2584,7 +2646,7 @@ function pageEnjeu({ query }) {
   const compteSeg = (s) => s === "recuperer" ? claims.length : s === "tous" ? enrichies.length : enrichies.filter((x) => x.seg === s).length;
 
   return `
-    <h1>En jeu</h1>
+    <h1>Mes positions</h1>
     <div class="enjeu-entete">
       <div class="bloc"><span class="lib muet">Positions ouvertes</span><div class="val num" style="font-size:1.25rem; font-weight:700">${positions.length}</div></div>
       <div class="bloc"><span class="lib muet">Encore exposé</span><div class="val num" style="font-size:1.25rem; font-weight:700">${fmt(totalExpose)}</div></div>
@@ -2698,6 +2760,7 @@ function pagePortefeuille({ query }) {
     <div class="chips" style="margin-top:14px">
       ${ONGLETS_PORTEFEUILLE.map((o) => `<a class="chip ${onglet === o.cle ? "actif" : ""}" href="#/portefeuille?o=${o.cle}">${o.lib}</a>`).join("")}
       <a class="chip" href="#/resultats">Résultats ↗</a>
+      <a class="chip" href="#/stats">Statistiques ↗</a>
     </div>
     ${contenus[onglet] || contenus.vue}`;
 }
@@ -3013,6 +3076,242 @@ function pageNotifications() {
 }
 
 
+/* ================= js/pages/stats.js ================= */
+// Page Statistiques (sous Portefeuille).
+//
+// Règle imposée par l'utilisateur : NE JAMAIS présenter le solde global d'Éclats
+// comme une performance. Le solde bouge avec les autres applications de
+// l'écosystème. Ici, tout est scopé à Éclats Marchés : gains/pertes, P&L, ROI
+// se calculent uniquement à partir de l'activité de trading de cette appli.
+//
+// Phase A : les valeurs calculables le sont réellement à partir des fixtures ;
+// les stats qui exigeraient un historique riche (calibration, calendrier,
+// séries) sont marquées « démonstration » et seront branchées en Phase C/D.
+
+
+function tuile(val, lib, classe = "") {
+  return `<div class="stat"><div class="val num ${classe}">${val}</div><div class="lib">${echap(lib)}</div></div>`;
+}
+function demoTag() {
+  return `<span class="pastille pastille-off" title="Sera calculé sur l'historique réel en Phase C/D">démonstration</span>`;
+}
+
+function pageStats() {
+  if (etat.demo.chargement) {
+    return `<h1>Statistiques</h1>${Array(3).fill('<div class="panneau skeleton" style="height:120px; margin-top:14px"></div>').join("")}`;
+  }
+
+  const gagnes = etat.claims.filter((c) => c.type === "GAIN");
+  const rembs = etat.claims.filter((c) => c.type === "REMBOURSEMENT");
+  const perdus = etat.defaites;
+  const positions = etat.positions;
+
+  // ---- Résultat de trading (cette appli uniquement) ----
+  const gainsNet = gagnes.reduce((s, c) => s + (c.montant - c.mise), 0);
+  const pertesNet = perdus.reduce((s, d) => s + d.perte, 0); // négatif
+  const pnlRealise = gainsNet + pertesNet;
+  const pnlLatent = positions.reduce((s, p) => s + (plLatent(p) || 0), 0);
+  const pnlTotal = pnlRealise + pnlLatent;
+  const misesResolues = gagnes.reduce((s, c) => s + c.mise, 0) + perdus.reduce((s, d) => s + d.mise, 0);
+  const roi = misesResolues > 0 ? (pnlRealise / misesResolues) * 100 : 0;
+
+  const gainsEncaisses = gagnes.reduce((s, c) => s + c.montant, 0);
+  const remboursements = rembs.reduce((s, c) => s + c.montant, 0);
+  const pertesSeches = perdus.reduce((s, d) => s + d.mise, 0);
+
+  // Courbe de P&L réalisé cumulé (scopée appli)
+  const evts = [
+    ...gagnes.map((c) => ({ t: new Date(c.resoluAt).getTime(), d: c.montant - c.mise })),
+    ...perdus.map((d) => ({ t: new Date(d.resoluAt).getTime(), d: d.perte }))
+  ].sort((a, b) => a.t - b.t);
+  let cum = 0;
+  const equity = [{ t: (evts[0]?.t || Date.now()) - 86400000, p: 0 }];
+  evts.forEach((e) => { cum += e.d; equity.push({ t: e.t, p: Math.round(cum) }); });
+
+  // ---- Précision ----
+  const nbG = gagnes.length, nbP = perdus.length;
+  const winRate = (nbG + nbP) > 0 ? (nbG / (nbG + nbP)) * 100 : 0;
+
+  // ---- Records ----
+  const meilleur = gagnes.map((c) => ({ t: c.titre, v: c.montant - c.mise, pct: ((c.montant - c.mise) / c.mise) * 100 }))
+    .sort((a, b) => b.v - a.v)[0];
+  const pire = perdus.map((d) => ({ t: d.titre, v: d.perte, pct: -100 })).sort((a, b) => a.v - b.v)[0];
+
+  // ---- Rentabilité par source et par thème (réel) ----
+  const rentabilite = (keyFn) => {
+    const map = new Map();
+    const ajoute = (k, mise, pnl) => {
+      const e = map.get(k) || { mise: 0, pnl: 0 };
+      e.mise += mise; e.pnl += pnl; map.set(k, e);
+    };
+    gagnes.forEach((c) => ajoute(keyFn(c), c.mise, c.montant - c.mise));
+    perdus.forEach((d) => ajoute(keyFn(d), d.mise, d.perte));
+    return [...map.entries()].filter(([, e]) => e.mise > 0)
+      .map(([axe, e]) => ({ axe, mise: e.mise, pnl: e.pnl, rdt: (e.pnl / e.mise) * 100 }))
+      .sort((a, b) => b.pnl - a.pnl);
+  };
+  const themeDe = (x) => marche(x.marcheId)?.theme || "Autre";
+  const sourceDe = (x) => x.source === "POLYMARKET" ? "Polymarket" : "Manifold";
+  const parSource = rentabilite(sourceDe);
+  const parTheme = rentabilite(themeDe);
+
+  const tableRentabilite = (titre, lignes) => `
+    <div class="panneau"><h3>${titre}</h3>
+      <div class="defilement-x"><table class="tableau">
+        <thead><tr><th>${echap(titre.replace("Rentabilité par ", ""))}</th><th>Misé</th><th>P&amp;L réalisé</th><th>Rendement</th></tr></thead>
+        <tbody>${lignes.map((l) => `<tr>
+          <td>${echap(l.axe)}</td>
+          <td class="num">${fmt(l.mise)}</td>
+          <td class="num ${l.pnl >= 0 ? "vert" : "rouge"}">${fmtSigne(l.pnl)}</td>
+          <td class="num ${l.rdt >= 0 ? "vert" : "rouge"}">${fmtSigne(l.rdt)} %</td>
+        </tr>`).join("")}</tbody>
+      </table></div>
+    </div>`;
+
+  // ---- Calibration (démonstration) ----
+  const calib = [
+    { plage: "0 à 20 %", predit: 12, reel: 15, n: 6 },
+    { plage: "20 à 40 %", predit: 31, reel: 27, n: 9 },
+    { plage: "40 à 60 %", predit: 50, reel: 52, n: 11 },
+    { plage: "60 à 80 %", predit: 69, reel: 74, n: 8 },
+    { plage: "80 à 100 %", predit: 88, reel: 83, n: 7 }
+  ];
+
+  // ---- Calendrier d'activité (démonstration déterministe) ----
+  let seed = 42;
+  const jour = () => { seed = (seed * 9301 + 49297) % 233280; return Math.floor((seed / 233280) * 5); };
+  const semaines = 16;
+  const heatmap = Array.from({ length: semaines * 7 }, jour);
+
+  // ---- Badges / jalons ----
+  const badges = [
+    { ico: "🎯", nom: "Premier pari", ok: true },
+    { ico: "🏆", nom: "Premier gain récupéré", ok: gagnes.some((c) => etat.claimsRecuperes.has(c.id)) },
+    { ico: "🔥", nom: "3 gains d'affilée", ok: nbG >= 3 },
+    { ico: "🌍", nom: "5 thèmes différents", ok: parTheme.length >= 5 },
+    { ico: "💎", nom: "Position tenue jusqu'à résolution", ok: true },
+    { ico: "⚡", nom: "10 marchés suivis", ok: etat.favoris.size >= 3 }
+  ];
+
+  return `
+    <h1>Statistiques</h1>
+    <p class="muet" style="margin-top:-6px">Toutes ces stats ne concernent que votre activité sur Éclats Marchés.
+      Elles n'incluent pas votre solde global d'Éclats, qui dépend aussi des autres applications de l'écosystème.</p>
+
+    <div class="rangee-titre"><h2>📈 Résultat de trading</h2></div>
+    <div class="panneau">
+      <div class="stats-grille">
+        ${tuile(fmtSigne(pnlRealise), "P&L réalisé (appli)", pnlRealise >= 0 ? "vert" : "rouge")}
+        ${tuile(fmtSigne(Math.round(pnlLatent)), "P&L latent (positions ouvertes)", pnlLatent >= 0 ? "vert" : "rouge")}
+        ${tuile(fmtSigne(Math.round(pnlTotal)), "P&L total de l'appli", pnlTotal >= 0 ? "vert" : "rouge")}
+        ${tuile(fmtSigne(Math.round(roi)) + " %", "ROI réalisé (sur mises)", roi >= 0 ? "vert" : "rouge")}
+      </div>
+      <div style="margin-top:14px">${sparkline(equity, { w: 320, h: 60 })}
+        <div class="lib tres-muet">P&L réalisé cumulé sur cette appli</div></div>
+    </div>
+
+    <div class="rangee-titre"><h2>◆ Éclats gagnés et perdus (appli)</h2></div>
+    <div class="panneau"><div class="stats-grille">
+      ${tuile(fmt(gainsEncaisses), "Gains encaissés", "vert")}
+      ${tuile(fmt(remboursements), "Remboursements")}
+      ${tuile(fmt(pertesSeches), "Pertes sèches", "rouge")}
+      ${tuile(fmtSigne(Math.round(gainsNet + pertesNet)), "Gain net de trading", (gainsNet + pertesNet) >= 0 ? "vert" : "rouge")}
+    </div></div>
+
+    <div class="rangee-titre"><h2>🎲 Précision de vos pronostics</h2></div>
+    <div class="panneau">
+      <div class="stats-grille">
+        ${tuile(fmt(winRate) + " %", `Taux de réussite (${nbG}/${nbG + nbP})`)}
+        ${tuile("0,182 " + demoTag(), "Score de Brier (plus bas = mieux)")}
+        ${tuile("+4,1 pts " + demoTag(), "Edge moyen vs résolution")}
+        ${tuile("+2,3 % " + demoTag(), "Performance vs le marché")}
+      </div>
+      <h3 style="margin-top:16px">Courbe de calibration ${demoTag()}</h3>
+      <p class="tres-muet">Quand vous pariez à X %, gagnez-vous vraiment X % du temps ? Barre pleine = votre prédiction, barre claire = résultat réel.</p>
+      <div class="calib">
+        ${calib.map((c) => `<div class="calib-ligne">
+          <span class="calib-plage">${c.plage}</span>
+          <div class="calib-barres">
+            <div class="calib-barre predit" style="width:${c.predit}%"><span>${c.predit}%</span></div>
+            <div class="calib-barre reel" style="width:${c.reel}%"><span>${c.reel}%</span></div>
+          </div>
+          <span class="tres-muet">${c.n} paris</span>
+        </div>`).join("")}
+      </div>
+    </div>
+
+    ${tableRentabilite("Rentabilité par source", parSource)}
+    ${tableRentabilite("Rentabilité par thème", parTheme)}
+
+    <div class="panneau"><h3>Rentabilité par horizon et par cote ${demoTag()}</h3>
+      <div class="defilement-x"><table class="tableau">
+        <thead><tr><th>Découpage</th><th>Misé</th><th>P&amp;L</th><th>Rendement</th></tr></thead>
+        <tbody>
+          <tr><td>Court terme (&lt; 24 h)</td><td class="num">450</td><td class="num vert">+312</td><td class="num vert">+69 %</td></tr>
+          <tr><td>Moyen terme (&lt; 30 j)</td><td class="num">600</td><td class="num vert">+188</td><td class="num vert">+31 %</td></tr>
+          <tr><td>Long terme</td><td class="num">300</td><td class="num rouge">-95</td><td class="num rouge">-32 %</td></tr>
+          <tr><td>Favoris (proba ≥ 80 %)</td><td class="num">500</td><td class="num vert">+120</td><td class="num vert">+24 %</td></tr>
+          <tr><td>Outsiders (proba ≤ 20 %)</td><td class="num">200</td><td class="num vert">+340</td><td class="num vert">+170 %</td></tr>
+          <tr><td>Paris OUI</td><td class="num">700</td><td class="num vert">+410</td><td class="num vert">+59 %</td></tr>
+          <tr><td>Paris NON</td><td class="num">350</td><td class="num rouge">-5</td><td class="num rouge">-1 %</td></tr>
+        </tbody>
+      </table></div>
+    </div>
+
+    <div class="rangee-titre"><h2>🏅 Records</h2></div>
+    <div class="stats-grille">
+      ${tuile("+" + fmt(meilleur?.v || 0), "Meilleur gain net", "vert")}
+      ${tuile(fmt(pire?.v || 0), "Pire perte", "rouge")}
+      ${tuile("+" + fmt(Math.round(meilleur?.pct || 0)) + " %", "Meilleur rendement", "vert")}
+      ${tuile("2 j 4 h " + demoTag(), "Résolution la plus rapide")}
+    </div>
+    <div class="panneau" style="margin-top:12px">
+      <p class="muet">🥇 Meilleur trade : <strong>${echap(meilleur?.t || "?")}</strong> (${fmtSigne(meilleur?.v || 0)} Éclats)</p>
+      <p class="muet">💔 Pire trade : <strong>${echap(pire?.t || "?")}</strong> (${fmtSigne(pire?.v || 0)} Éclats)</p>
+    </div>
+
+    <div class="rangee-titre"><h2>🔥 Séries ${demoTag()}</h2></div>
+    <div class="stats-grille">
+      ${tuile("2 gains", "Série en cours", "vert")}
+      ${tuile("4 gains", "Plus longue série de gains", "vert")}
+      ${tuile("2 pertes", "Plus longue série de pertes", "rouge")}
+    </div>
+
+    <div class="rangee-titre"><h2>🧭 Comportement</h2></div>
+    <div class="panneau"><div class="stats-grille">
+      ${tuile(positions.length + nbG + nbP + rembs.length, "Paris pris au total")}
+      ${tuile(positions.length, "Positions ouvertes")}
+      ${tuile(fmt(misesResolues / Math.max(1, nbG + nbP)), "Mise moyenne")}
+      ${tuile("38 % " + demoTag(), "Revendus avant résolution")}
+    </div>
+    <h3 style="margin-top:16px">Calendrier d'activité ${demoTag()}</h3>
+    <div class="heatmap">
+      ${heatmap.map((n) => `<span class="hm-case hm-${n}"></span>`).join("")}
+    </div>
+    <div class="hm-legende tres-muet">Moins <span class="hm-case hm-0"></span><span class="hm-case hm-1"></span><span class="hm-case hm-2"></span><span class="hm-case hm-3"></span><span class="hm-case hm-4"></span> Plus</div>
+    </div>
+
+    <div class="rangee-titre"><h2>🛡️ Discipline et risque</h2></div>
+    <div class="panneau"><div class="stats-grille">
+      ${tuile(fmt(positions.reduce((s, p) => s + p.montantExpose, 0)), "Exposition ouverte")}
+      ${tuile(fmt(Math.round(Math.max(...positions.map((p) => p.montantExpose), 0) / Math.max(1, positions.reduce((s, p) => s + p.montantExpose, 0)) * 100)) + " %", "Concentration (plus gros pari)")}
+      ${tuile(parTheme.length + " thèmes", "Diversification")}
+      ${tuile("Respectée " + demoTag(), "Limite d'exposition par marché")}
+    </div></div>
+
+    <div class="rangee-titre"><h2>🏆 Jalons</h2></div>
+    <div class="badges">
+      ${badges.map((b) => `<div class="badge-jalon ${b.ok ? "obtenu" : "verrouille"}">
+        <span class="bj-ico">${b.ico}</span><span class="bj-nom">${echap(b.nom)}</span>
+        <span class="bj-etat">${b.ok ? "Obtenu" : "À débloquer"}</span>
+      </div>`).join("")}
+    </div>
+
+    <p class="tres-muet" style="margin-top:20px">Les blocs marqués « démonstration » seront calculés sur votre historique réel dès que le trading sera branché (Phases C et D).</p>
+  `;
+}
+
+
 /* ================= js/app.js ================= */
 // Bootstrap du prototype Éclats Marchés (Phase A).
 
@@ -3027,6 +3326,33 @@ function pageNotifications() {
 
 
 
+
+// Architecture en 3 piliers. La sous-navigation dépend du pilier actif.
+const SOUS_NAV = {
+  marches: [
+    { lib: "Pour moi", href: "#/accueil", actif: (r) => r.page === "accueil" },
+    { lib: "24 h", href: "#/recherche?horizon=24", actif: (r) => r.page === "recherche" && r.query.horizon === "24" },
+    { lib: "France & Europe", href: "#/recherche?region=France%20%26%20Europe", actif: (r) => r.page === "recherche" && (r.query.region || "").startsWith("France") },
+    { lib: "Nouveaux", href: "#/recherche?tri=nouveau", actif: (r) => r.page === "recherche" && r.query.tri === "nouveau" },
+    { lib: "Populaires", href: "#/recherche?tri=volume", actif: (r) => r.page === "recherche" && r.query.tri === "volume" },
+    { lib: "Thèmes", href: "#/recherche?vue=themes", actif: (r) => r.page === "recherche" && r.query.vue === "themes" },
+    { lib: "Favoris", href: "#/favoris", actif: (r) => r.page === "favoris" },
+    { lib: "Recherche", href: "#/recherche", actif: (r) => r.page === "recherche" && !r.query.horizon && !r.query.tri && !r.query.vue && !(r.query.region || "").startsWith("France") }
+  ],
+  portefeuille: [
+    { lib: "Portefeuille", href: "#/portefeuille", actif: (r) => r.page === "portefeuille" },
+    { lib: "Résultats", href: "#/resultats", actif: (r) => r.page === "resultats" },
+    { lib: "Statistiques", href: "#/stats", actif: (r) => r.page === "stats" }
+  ],
+  positions: []
+};
+
+function sectionPrimaire(page) {
+  if (page === "enjeu") return "positions";
+  if (["portefeuille", "resultats", "stats"].includes(page)) return "portefeuille";
+  return "marches";
+}
+
 document.documentElement.dataset.theme = etat.theme;
 
 enregistrer("accueil", pageAccueil);
@@ -3038,6 +3364,7 @@ enregistrer("resultats", pageResultats);
 enregistrer("favoris", pageFavoris);
 enregistrer("parametres", pageParametres);
 enregistrer("notifications", pageNotifications);
+enregistrer("stats", pageStats);
 
 const contenu = document.getElementById("contenu");
 const rendre = demarrerRouteur(contenu, (r) => {
@@ -3061,11 +3388,13 @@ function majEntete() {
   badgeN.hidden = nonVues === 0;
   badgeN.textContent = nonVues;
 
-  const badgeE = document.getElementById("badge-enjeu");
-  badgeE.hidden = etat.positions.length === 0;
-  badgeE.textContent = etat.positions.length;
-
-  document.getElementById("badge-resultats").hidden = claims <= 0;
+  // Badges de piliers : nombre de positions ouvertes, point si des gains attendent
+  document.querySelectorAll('[data-badge="positions"]').forEach((el) => {
+    el.hidden = etat.positions.length === 0;
+    el.textContent = etat.positions.length;
+  });
+  document.querySelectorAll('[data-badge="positions-m"]').forEach((el) => { el.hidden = etat.positions.length === 0; });
+  document.querySelectorAll('[data-badge="portefeuille"],[data-badge="portefeuille-m"]').forEach((el) => { el.hidden = claims <= 0; });
 
   const tr = document.getElementById("indicateur-tr");
   if (etat.sources.websocket.etat === "connecte") {
@@ -3087,23 +3416,13 @@ function majEntete() {
 }
 
 function majNavigation(r) {
-  const q = r.query || {};
-  document.querySelectorAll("#nav-sections a").forEach((a) => a.classList.remove("actif"));
-  const actifDesktop =
-    r.page === "accueil" ? "accueil"
-    : r.page === "enjeu" ? "enjeu"
-    : r.page === "favoris" ? "favoris"
-    : r.page === "recherche" && q.horizon === "24" ? "24h"
-    : r.page === "recherche" && q.vue === "themes" ? "themes"
-    : r.page === "recherche" && q.tri === "volume" ? "populaires"
-    : r.page === "recherche" && q.tri === "nouveau" ? "nouveaux"
-    : r.page === "recherche" && (q.region || "").startsWith("France") ? "fr-eu"
-    : null;
-  if (actifDesktop) document.querySelector(`#nav-sections a[data-section="${actifDesktop}"]`)?.classList.add("actif");
+  const pilier = sectionPrimaire(r.page);
+  document.querySelectorAll("[data-primaire]").forEach((a) => a.classList.toggle("actif", a.dataset.primaire === pilier));
 
-  document.querySelectorAll("#nav-mobile a").forEach((a) => a.classList.remove("actif"));
-  const actifMobile = ["portefeuille", "resultats", "recherche"].includes(r.page) ? r.page : "marches";
-  document.querySelector(`#nav-mobile a[data-mnav="${actifMobile}"]`)?.classList.add("actif");
+  const sousNav = document.getElementById("sous-nav");
+  const items = SOUS_NAV[pilier] || [];
+  sousNav.innerHTML = items.map((it) =>
+    `<a href="${it.href}" class="${it.actif(r) ? "actif" : ""}">${it.lib}</a>`).join("");
 }
 
 surChangement(majEntete);

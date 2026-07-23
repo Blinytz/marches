@@ -11,6 +11,33 @@ import { pageResultats } from "./pages/resultats.js";
 import { pageFavoris } from "./pages/favoris.js";
 import { pageParametres } from "./pages/parametres.js";
 import { pageNotifications } from "./pages/notifications.js";
+import { pageStats } from "./pages/stats.js";
+
+// Architecture en 3 piliers. La sous-navigation dépend du pilier actif.
+const SOUS_NAV = {
+  marches: [
+    { lib: "Pour moi", href: "#/accueil", actif: (r) => r.page === "accueil" },
+    { lib: "24 h", href: "#/recherche?horizon=24", actif: (r) => r.page === "recherche" && r.query.horizon === "24" },
+    { lib: "France & Europe", href: "#/recherche?region=France%20%26%20Europe", actif: (r) => r.page === "recherche" && (r.query.region || "").startsWith("France") },
+    { lib: "Nouveaux", href: "#/recherche?tri=nouveau", actif: (r) => r.page === "recherche" && r.query.tri === "nouveau" },
+    { lib: "Populaires", href: "#/recherche?tri=volume", actif: (r) => r.page === "recherche" && r.query.tri === "volume" },
+    { lib: "Thèmes", href: "#/recherche?vue=themes", actif: (r) => r.page === "recherche" && r.query.vue === "themes" },
+    { lib: "Favoris", href: "#/favoris", actif: (r) => r.page === "favoris" },
+    { lib: "Recherche", href: "#/recherche", actif: (r) => r.page === "recherche" && !r.query.horizon && !r.query.tri && !r.query.vue && !(r.query.region || "").startsWith("France") }
+  ],
+  portefeuille: [
+    { lib: "Portefeuille", href: "#/portefeuille", actif: (r) => r.page === "portefeuille" },
+    { lib: "Résultats", href: "#/resultats", actif: (r) => r.page === "resultats" },
+    { lib: "Statistiques", href: "#/stats", actif: (r) => r.page === "stats" }
+  ],
+  positions: []
+};
+
+function sectionPrimaire(page) {
+  if (page === "enjeu") return "positions";
+  if (["portefeuille", "resultats", "stats"].includes(page)) return "portefeuille";
+  return "marches";
+}
 
 document.documentElement.dataset.theme = etat.theme;
 
@@ -23,6 +50,7 @@ enregistrer("resultats", pageResultats);
 enregistrer("favoris", pageFavoris);
 enregistrer("parametres", pageParametres);
 enregistrer("notifications", pageNotifications);
+enregistrer("stats", pageStats);
 
 const contenu = document.getElementById("contenu");
 const rendre = demarrerRouteur(contenu, (r) => {
@@ -46,11 +74,13 @@ function majEntete() {
   badgeN.hidden = nonVues === 0;
   badgeN.textContent = nonVues;
 
-  const badgeE = document.getElementById("badge-enjeu");
-  badgeE.hidden = etat.positions.length === 0;
-  badgeE.textContent = etat.positions.length;
-
-  document.getElementById("badge-resultats").hidden = claims <= 0;
+  // Badges de piliers : nombre de positions ouvertes, point si des gains attendent
+  document.querySelectorAll('[data-badge="positions"]').forEach((el) => {
+    el.hidden = etat.positions.length === 0;
+    el.textContent = etat.positions.length;
+  });
+  document.querySelectorAll('[data-badge="positions-m"]').forEach((el) => { el.hidden = etat.positions.length === 0; });
+  document.querySelectorAll('[data-badge="portefeuille"],[data-badge="portefeuille-m"]').forEach((el) => { el.hidden = claims <= 0; });
 
   const tr = document.getElementById("indicateur-tr");
   if (etat.sources.websocket.etat === "connecte") {
@@ -72,23 +102,13 @@ function majEntete() {
 }
 
 function majNavigation(r) {
-  const q = r.query || {};
-  document.querySelectorAll("#nav-sections a").forEach((a) => a.classList.remove("actif"));
-  const actifDesktop =
-    r.page === "accueil" ? "accueil"
-    : r.page === "enjeu" ? "enjeu"
-    : r.page === "favoris" ? "favoris"
-    : r.page === "recherche" && q.horizon === "24" ? "24h"
-    : r.page === "recherche" && q.vue === "themes" ? "themes"
-    : r.page === "recherche" && q.tri === "volume" ? "populaires"
-    : r.page === "recherche" && q.tri === "nouveau" ? "nouveaux"
-    : r.page === "recherche" && (q.region || "").startsWith("France") ? "fr-eu"
-    : null;
-  if (actifDesktop) document.querySelector(`#nav-sections a[data-section="${actifDesktop}"]`)?.classList.add("actif");
+  const pilier = sectionPrimaire(r.page);
+  document.querySelectorAll("[data-primaire]").forEach((a) => a.classList.toggle("actif", a.dataset.primaire === pilier));
 
-  document.querySelectorAll("#nav-mobile a").forEach((a) => a.classList.remove("actif"));
-  const actifMobile = ["portefeuille", "resultats", "recherche"].includes(r.page) ? r.page : "marches";
-  document.querySelector(`#nav-mobile a[data-mnav="${actifMobile}"]`)?.classList.add("actif");
+  const sousNav = document.getElementById("sous-nav");
+  const items = SOUS_NAV[pilier] || [];
+  sousNav.innerHTML = items.map((it) =>
+    `<a href="${it.href}" class="${it.actif(r) ? "actif" : ""}">${it.lib}</a>`).join("");
 }
 
 surChangement(majEntete);

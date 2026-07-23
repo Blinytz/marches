@@ -35,6 +35,7 @@
     </div>
     <div class="entete-droite">
       <span id="indicateur-tr" class="indicateur-tr" title="Connexion temps réel">⚡ <span>En direct</span></span>
+      <a id="btn-recherche-mobile" href="#/recherche" title="Rechercher" aria-label="Rechercher">🔍</a>
       <a id="bouton-notifs" href="#/notifications" title="Notifications">🔔<span id="badge-notifs" class="badge-compte" hidden></span></a>
       <a id="bloc-solde" href="#/portefeuille" title="Portefeuille">
         <span id="solde-valeur" class="solde">◇ …</span>
@@ -43,26 +44,25 @@
     </div>
   </header>
 
-  <nav id="nav-sections" aria-label="Sections">
-    <a href="#/accueil" data-section="accueil">Pour moi</a>
-    <a href="#/recherche?horizon=24" data-section="24h">24 h</a>
-    <a href="#/recherche?region=France%20%26%20Europe" data-section="fr-eu">France &amp; Europe</a>
-    <a href="#/recherche?tri=nouveau" data-section="nouveaux">Nouveaux</a>
-    <a href="#/recherche?tri=volume" data-section="populaires">Populaires</a>
-    <a href="#/recherche?vue=themes" data-section="themes">Thèmes</a>
-    <a href="#/enjeu" data-section="enjeu">En jeu<span id="badge-enjeu" class="badge-compte" hidden></span></a>
-    <a href="#/favoris" data-section="favoris">Ma liste</a>
+  <!-- Navigation en 3 piliers : Marchés · Mes positions · Portefeuille (desktop) -->
+  <nav id="nav-principale" aria-label="Sections principales">
+    <a href="#/accueil" data-primaire="marches"><span class="np-ico">🏛️</span>Marchés</a>
+    <a href="#/enjeu" data-primaire="positions"><span class="np-ico">🎯</span>Mes positions<span class="badge-compte" data-badge="positions" hidden></span></a>
+    <a href="#/portefeuille" data-primaire="portefeuille"><span class="np-ico eclat">◆</span>Portefeuille<span class="badge-point" data-badge="portefeuille" hidden></span></a>
   </nav>
+
+  <!-- Sous-navigation contextuelle (dépend du pilier actif), rendue par app.js -->
+  <div id="sous-nav" aria-label="Sous-sections"></div>
 
   <div id="bandeaux"></div>
 
   <main id="contenu" tabindex="-1"></main>
 
+  <!-- Barre basse mobile : mêmes 3 piliers -->
   <nav id="nav-mobile" aria-label="Navigation principale">
-    <a href="#/accueil" data-mnav="marches"><span class="mnav-ico">🏛️</span>Marchés</a>
-    <a href="#/recherche" data-mnav="recherche"><span class="mnav-ico">🔍</span>Recherche</a>
-    <a href="#/portefeuille" data-mnav="portefeuille"><span class="mnav-ico">◇</span>Portefeuille</a>
-    <a href="#/resultats" data-mnav="resultats"><span class="mnav-ico">🏆</span>Résultats<span id="badge-resultats" class="badge-point" hidden></span></a>
+    <a href="#/accueil" data-primaire="marches"><span class="mnav-ico">🏛️</span>Marchés</a>
+    <a href="#/enjeu" data-primaire="positions"><span class="mnav-ico">🎯</span>Positions<span class="badge-point" data-badge="positions-m" hidden></span></a>
+    <a href="#/portefeuille" data-primaire="portefeuille"><span class="mnav-ico eclat">◆</span>Portefeuille<span class="badge-point" data-badge="portefeuille-m" hidden></span></a>
   </nav>
 
   <div id="voile" hidden></div>
