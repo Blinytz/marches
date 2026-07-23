@@ -462,7 +462,7 @@ export const CLAIMS = [
   {
     id: "claim-encours", settlementId: "stl-encours", marcheId: "mf-spacex-lancement",
     titre: "Starship flight 12 reaches orbit?", source: "MANIFOLD",
-    etat: "CLAIMING", type: "GAIN", montant: 265, mise: 100, parts: 2.65,
+    etat: "CLAIMABLE", type: "GAIN", montant: 265, mise: 100, parts: 2.65,
     resoluAt: ilYA(180), issueLabel: "OUI"
   },
   {

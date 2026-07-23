@@ -1,28 +1,61 @@
 // Fiche événement/marché (9.4) + ticket de transaction (9.5).
 // Le ticket est une simulation locale : la version réelle passera par la prévisualisation
-// et l'exécution serveur (TRADING_ENGINE.md). États : achat, confirmation, succès, erreur.
+// et l'exécution serveur (TRADING_ENGINE.md). États : achat, vente, confirmation, succès, erreur.
+//
+// Structure du ticket revue pour la clarté (retour utilisateur 22/07) :
+//  - on choisit d'abord un CAMP (OUI ou NON) via deux boutons de prix explicites ;
+//  - le mode Vendre n'apparaît que si une position existe, via un encart « Votre position »
+//    qui propose Renforcer et Vendre. Plus de double bascule OUI/NON + Acheter/Vendre.
 import { etat, marche } from "../etat.js";
 import {
-  echap, badgeSource, pastilleStatut, etoile, imgMarche, pct, fmt, fmtEclats,
+  echap, badgeSource, pastilleStatut, etoile, imgMarche, pct, fmt, fmtEclats, fmtSigne,
   htmlVariation, issuePrincipale, grapheDetaille, fraicheur, libelleEcheance,
-  fmtCompact, etatVide, ligneCompacte
+  fmtCompact, etatVide, ligneCompacte, valeurPosition, plLatent, probIssue
 } from "../ui.js";
 
-let ticket = null; // { marcheId, issueId, mode, montant, etape, prixServeur, recu }
+let ticket = null; // { marcheId, issueId, mode, montant, parts, etape, prixServeur, recu }
 
-export function ouvrirTicket(marcheId, issueId) {
-  ticket = { marcheId, issueId, mode: "achat", montant: 250, etape: "saisie" };
+export function ouvrirTicket(marcheId, issueId, mode = "achat") {
+  const m = marche(marcheId);
+  const pos = etat.positions.find((x) => x.marcheId === marcheId);
+  // Pour une vente on force l'issue détenue et on part sur la totalité des parts.
+  if (mode === "vente" && pos) {
+    ticket = { marcheId, issueId: pos.issueId, mode: "vente", montant: 250, parts: pos.parts, etape: "saisie" };
+  } else {
+    ticket = { marcheId, issueId: issueId || (pos ? pos.issueId : issuePrincipale(m).id), mode: "achat", montant: 250, parts: null, etape: "saisie" };
+  }
 }
 
 function prixIndicatif(m, issueId, mode = "achat") {
   const issue = m.issues.find((i) => i.id === issueId);
   if (!issue || issue.prob == null) return null;
-  let p = issue.prob;
-  if (m.source === "MANIFOLD") p = mode === "achat" ? Math.min(0.99, p + 0.01) : Math.max(0.01, p - 0.01);
-  else if (m.carnet) {
-    p = mode === "achat" ? (m.carnet.asks[0]?.[0] ?? p) : (m.carnet.bids[0]?.[0] ?? p);
-  }
-  return p;
+  // Chaque camp est coté à partir de SA probabilité, plus le spread (moitié de part
+  // et d'autre du prix). Le carnet des fixtures est illustratif et ne concerne que le
+  // camp affiché, on ne s'en sert donc pas pour coter le camp opposé.
+  const demiSpread = (m.source === "MANIFOLD" ? 0.01 : (m.spread ?? 0.02) / 2);
+  const p = issue.prob;
+  return mode === "achat"
+    ? Math.min(0.99, p + demiSpread)
+    : Math.max(0.01, p - demiSpread);
+}
+
+function encartPosition(m, pos, t) {
+  const val = valeurPosition(pos);
+  const pl = plLatent(pos);
+  const p = probIssue(m, pos.issueId);
+  return `<div class="ticket-position">
+    <div class="tp-ligne"><span>Votre position</span>
+      <span class="pos-issue ${pos.issueId === "non" ? "non" : "oui"}">${echap(pos.issueLabel)}</span></div>
+    <div class="tp-chiffres">
+      <span>${fmt(pos.parts)} parts</span><span>·</span>
+      <span>valeur ${val != null ? fmt(val) : "?"}</span><span>·</span>
+      <span class="${pl >= 0 ? "vert" : "rouge"}">P&amp;L ${pl != null ? fmtSigne(pl) : "?"}</span>
+    </div>
+    <div class="ticket-actions-pos">
+      <button class="btn ${t.mode === "achat" ? "btn-principal" : "btn-discret"}" data-ticket="renforcer">Renforcer</button>
+      <button class="btn ${t.mode === "vente" ? "btn-principal" : "btn-discret"}" data-ticket="vendre">Vendre</button>
+    </div>
+  </div>`;
 }
 
 function htmlTicket(m) {
@@ -36,39 +69,25 @@ function htmlTicket(m) {
   }
   if (!ticket || ticket.marcheId !== m.id) ouvrirTicket(m.id, issuePrincipale(m).id);
   const t = ticket;
-  const issue = m.issues.find((i) => i.id === t.issueId) || m.issues[0];
-  const p = prixIndicatif(m, t.issueId, t.mode);
-  const vn = etat.valeurNominale;
-  const prixU = p != null ? p * vn : null;
   const pos = etat.positions.find((x) => x.marcheId === m.id);
+  const vn = etat.valeurNominale;
   const binaire = m.marketType === "BINARY";
+  const issue = m.issues.find((i) => i.id === t.issueId) || m.issues[0];
 
-  const onglets = binaire
-    ? `<div class="ticket-onglets">
-        <button class="on-oui ${t.issueId === "oui" ? "actif" : ""}" data-ticket="issue" data-val="oui">OUI ${Math.round((m.issues.find(i => i.id === "oui")?.prob ?? 0) * 100)}</button>
-        <button class="on-non ${t.issueId === "non" ? "actif" : ""}" data-ticket="issue" data-val="non">NON ${Math.round((m.issues.find(i => i.id === "non")?.prob ?? 0) * 100)}</button>
-      </div>`
-    : `<select class="champ" data-ticket="issue-select" aria-label="Issue">
-        ${m.issues.map((i) => `<option value="${i.id}" ${i.id === t.issueId ? "selected" : ""}>${echap(i.label)} · ${pct(i.prob)}</option>`).join("")}
-      </select>`;
-
-  const modeBoutons = `<div class="ticket-onglets" style="margin-top:2px">
-    <button class="${t.mode === "achat" ? "actif on-oui" : ""}" data-ticket="mode" data-val="achat">Acheter</button>
-    <button class="${t.mode === "vente" ? "actif on-non" : ""}" data-ticket="mode" data-val="vente" ${pos ? "" : "disabled title='Aucune position à vendre'"}>Vendre</button>
-  </div>`;
-
+  // ---- Succès ----
   if (t.etape === "succes") {
     const r = t.recu;
+    const estVente = t.mode === "vente";
     return `<div class="ticket eclat-anim joue">
-      <h3>✅ ${t.mode === "achat" ? "Achat exécuté" : "Vente exécutée"}</h3>
+      <h3>✅ ${estVente ? "Vente exécutée" : "Achat exécuté"}</h3>
       <div class="recu">
         <div><span>Marché</span><strong style="text-align:right; max-width:60%">${echap(m.titleOriginal.slice(0, 60))}${m.titleOriginal.length > 60 ? "…" : ""}</strong></div>
-        <div><span>Issue</span><strong>${echap(issue.label)}</strong></div>
-        <div><span>${t.mode === "achat" ? "Montant débité" : "Produit crédité"}</span><strong>${fmtEclats(r.montant)}</strong></div>
+        <div><span>Camp</span><strong>${echap(issue.label)}</strong></div>
+        <div><span>${estVente ? "Produit crédité" : "Montant débité"}</span><strong>${fmtEclats(r.montant)}</strong></div>
         <div><span>Frais</span><strong>0 Éclats</strong></div>
         <div><span>Parts</span><strong>${fmt(r.parts)}</strong></div>
         <div><span>Prix moyen</span><strong>${fmt(r.prix)}</strong></div>
-        ${t.mode === "achat" ? `<div><span>Paiement maximal</span><strong>${fmtEclats(r.parts * vn)}</strong></div>
+        ${!estVente ? `<div><span>Paiement maximal</span><strong>${fmtEclats(r.parts * vn)}</strong></div>
         <div><span>Bénéfice maximal</span><strong class="vert">+${fmt(r.parts * vn - r.montant)}</strong></div>` : ""}
         <div><span>Transaction</span><span class="id-support">${r.id}</span></div>
       </div>
@@ -78,40 +97,97 @@ function htmlTicket(m) {
     </div>`;
   }
 
+  // ---- Confirmation ----
   if (t.etape === "confirmation") {
     const pServeur = t.prixServeur;
-    const ecartPts = Math.abs(pServeur - p) * 100;
-    const horsTolerance = ecartPts > 2 || Math.abs(pServeur - p) / p > 0.05;
-    const parts = t.montant / (pServeur * vn);
+    const estVente = t.mode === "vente";
+    const pEstime = prixIndicatif(m, t.issueId, t.mode);
+    const ecartPts = Math.abs(pServeur - pEstime) * 100;
+    const horsTolerance = ecartPts > 2 || Math.abs(pServeur - pEstime) / pEstime > 0.05;
+    const parts = estVente ? t.parts : t.montant / (pServeur * vn);
+    const valeur = estVente ? parts * pServeur * vn : t.montant;
     return `<div class="ticket">
-      <h3>Confirmer ${t.mode === "achat" ? "l'achat" : "la vente"}</h3>
+      <h3>Confirmer ${estVente ? "la vente" : "l'achat"}</h3>
       <div class="ticket-detail">
-        <div><dt>Issue</dt><dd>${echap(issue.label)}</dd></div>
+        <div><dt>Camp</dt><dd>${echap(issue.label)}</dd></div>
         <div><dt>Prix vérifié à l'instant</dt><dd class="num"><strong>${fmt(pServeur * vn)}</strong></dd></div>
-        <div><dt>Votre estimation</dt><dd class="num">${fmt(prixU)}</dd></div>
+        <div><dt>Votre estimation</dt><dd class="num">${fmt(pEstime * vn)}</dd></div>
         <div><dt>Parts</dt><dd class="num">${fmt(parts)}</dd></div>
-        <div><dt>Paiement maximal</dt><dd class="num">${fmt(parts * vn)}</dd></div>
+        <div><dt>${estVente ? "Produit crédité" : "Paiement maximal"}</dt><dd class="num">${fmt(estVente ? valeur : parts * vn)}</dd></div>
       </div>
       ${horsTolerance ? `<div class="ticket-avert">⚠ Le prix a bougé de ${fmt(ecartPts)} points depuis votre saisie,
         au-delà de la tolérance (2 pts ou 5 %). Vérifiez le nouveau prix avant de confirmer à nouveau.</div>` : ""}
       <button class="btn btn-principal" data-ticket="executer">
-        ${horsTolerance ? "Confirmer au nouveau prix" : `${t.mode === "achat" ? "Acheter" : "Vendre"} ${echap(issue.label)} pour ${fmtEclats(t.montant)}`}
+        ${horsTolerance ? "Confirmer au nouveau prix" : `${estVente ? "Vendre" : "Acheter"} ${echap(issue.label)} · ${fmtEclats(estVente ? valeur : t.montant)}`}
       </button>
       <button class="btn btn-discret" data-ticket="retour">Retour</button>
     </div>`;
   }
 
+  // ---- Saisie : VENTE ----
+  if (t.mode === "vente" && pos) {
+    const p = prixIndicatif(m, pos.issueId, "vente");
+    const prixU = p != null ? p * vn : null;
+    if (t.parts == null || t.parts > pos.parts) t.parts = pos.parts;
+    const produit = prixU != null ? t.parts * prixU : 0;
+    const partsOk = t.parts > 0 && t.parts <= pos.parts;
+    return `<div class="ticket">
+      ${encartPosition(m, pos, t)}
+      <h3>Vendre ${echap(pos.issueLabel)}</h3>
+      <label class="muet" for="ticket-parts">Parts à vendre (sur ${fmt(pos.parts)})</label>
+      <input id="ticket-parts" class="champ num" type="number" min="0" max="${pos.parts}" step="0.01"
+        value="${fmt(t.parts)}" data-ticket="parts">
+      <div class="raccourcis">
+        ${[["25 %", 0.25], ["50 %", 0.5], ["75 %", 0.75], ["Tout", 1]].map(([lib, f]) =>
+          `<button data-ticket="parts-frac" data-val="${f}">${lib}</button>`).join("")}
+      </div>
+      <div class="ticket-detail">
+        <div><dt>Prix de vente (${m.source === "POLYMARKET" ? "meilleur bid" : "miroir -1"})</dt><dd class="num">${prixU != null ? fmt(prixU) : "?"}</dd></div>
+        <div><dt>Produit estimé</dt><dd class="num">${fmt(produit)}</dd></div>
+        <div><dt>Spread</dt><dd class="num">${m.spread != null ? fmt(m.spread * 100) + " pts" : "?"}</dd></div>
+        <div><dt>Frais</dt><dd class="num">0</dd></div>
+      </div>
+      ${!partsOk ? `<div class="ticket-erreur">Indiquez un nombre de parts entre 0 et ${fmt(pos.parts)}.</div>` : ""}
+      <p class="ticket-note">Le produit est crédité immédiatement après vérification du prix côté serveur. La vente ne modifie jamais le prix externe.</p>
+      <button class="btn btn-principal" data-ticket="previsualiser" ${partsOk && prixU != null ? "" : "disabled"}>
+        Vendre ${fmt(t.parts)} parts · ≈ ${fmtEclats(produit)}
+      </button>
+    </div>`;
+  }
+
+  // ---- Saisie : ACHAT ----
+  const p = prixIndicatif(m, t.issueId, "achat");
+  const prixU = p != null ? p * vn : null;
   const soldeDispo = etat.demo.solde_insuffisant ? 12 : etat.solde;
   const montantOk = t.montant >= 10 && t.montant <= 10000;
-  const soldeOk = t.mode === "vente" || t.montant <= soldeDispo;
+  const soldeOk = t.montant <= soldeDispo;
   const parts = prixU ? t.montant / prixU : 0;
-  const profondeurInsuffisante = m.profondeurFaible && t.mode === "achat" && t.montant > 25;
+  const profondeurInsuffisante = m.profondeurFaible && t.montant > 25;
+
+  const choixCamp = binaire
+    ? `<div class="ticket-cotes">
+        ${["oui", "non"].map((id) => {
+          const iss = m.issues.find((i) => i.id === id);
+          const px = prixIndicatif(m, id, "achat");
+          return `<button class="cote cote-${id} ${t.issueId === id ? "actif" : ""}" data-ticket="cote" data-val="${id}">
+            <span class="cote-label">${id === "oui" ? "OUI" : "NON"}</span>
+            <span class="cote-prix">${px != null ? fmt(px * vn) : "?"}</span>
+            <span class="cote-note">${iss?.prob != null ? pct(iss.prob) + " de proba" : ""}</span>
+          </button>`;
+        }).join("")}
+      </div>`
+    : `<label class="muet" for="ticket-issue-select">Réponse</label>
+       <select id="ticket-issue-select" class="champ" data-ticket="issue-select" aria-label="Réponse">
+        ${m.issues.map((i) => `<option value="${i.id}" ${i.id === t.issueId ? "selected" : ""}>${echap(i.label)} · ${pct(i.prob)}</option>`).join("")}
+       </select>`;
 
   return `<div class="ticket">
-    ${onglets}
-    ${modeBoutons}
-    ${m.source === "MANIFOLD" ? `<p class="ticket-note">Prix miroir Manifold : probabilité publique ± 1 point de spread local. Aucun ordre réel n'est placé chez Manifold.</p>` : ""}
-    <label class="muet" for="ticket-montant">${t.mode === "achat" ? "Mise" : "Produit visé"} en Éclats</label>
+    ${pos ? encartPosition(m, pos, t) : ""}
+    <h3>${pos ? "Renforcer votre position" : "Prendre position"}</h3>
+    <p class="ticket-note" style="margin-top:-4px">Choisissez le camp sur lequel miser. Le prix est le coût d'une part ; une part gagnante paie ${vn} Éclats.</p>
+    ${choixCamp}
+    ${m.source === "MANIFOLD" ? `<p class="ticket-note">Prix miroir Manifold : probabilité publique + 1 point de spread local. Aucun ordre réel n'est placé chez Manifold.</p>` : ""}
+    <label class="muet" for="ticket-montant">Combien miser ?</label>
     <input id="ticket-montant" class="champ num" type="number" min="10" max="10000" step="10"
       value="${t.montant}" data-ticket="montant">
     <div class="raccourcis">
@@ -119,14 +195,12 @@ function htmlTicket(m) {
       <button data-ticket="rapide" data-val="${Math.floor(soldeDispo)}">Max</button>
     </div>
     <div class="ticket-detail">
-      <div><dt>Prix indicatif (${t.mode === "achat" ? m.source === "POLYMARKET" ? "meilleur ask" : "miroir +1" : m.source === "POLYMARKET" ? "meilleur bid" : "miroir -1"})</dt>
-        <dd class="num">${prixU != null ? fmt(prixU) : "?"}</dd></div>
+      <div><dt>Prix d'une part ${m.source === "POLYMARKET" ? "(meilleur ask)" : "(miroir +1)"}</dt><dd class="num">${prixU != null ? fmt(prixU) : "?"}</dd></div>
       <div><dt>Parts estimées</dt><dd class="num">${fmt(parts)}</dd></div>
       <div><dt>Spread</dt><dd class="num">${m.spread != null ? fmt(m.spread * 100) + " pts" : "?"}</dd></div>
       <div><dt>Frais</dt><dd class="num">0</dd></div>
-      ${t.mode === "achat" ? `
       <div><dt>Paiement potentiel</dt><dd class="num">${fmt(parts * vn)}</dd></div>
-      <div><dt>Bénéfice potentiel</dt><dd class="num vert">+${fmt(Math.max(0, parts * vn - t.montant))}</dd></div>` : ""}
+      <div><dt>Bénéfice potentiel</dt><dd class="num vert">+${fmt(Math.max(0, parts * vn - t.montant))}</dd></div>
     </div>
     ${!montantOk ? `<div class="ticket-erreur">Mise entre 10 et 10 000 Éclats (réglages Économie).</div>` : ""}
     ${!soldeOk ? `<div class="ticket-erreur">Solde insuffisant : ${fmtEclats(soldeDispo)} disponibles.
@@ -135,7 +209,7 @@ function htmlTicket(m) {
       seuls ${fmtEclats(25)} sont exécutables. L'ordre serait partiellement exécuté (réglage : exécutions partielles autorisées).</div>` : ""}
     <p class="ticket-note">Le prix affiché est une estimation : la confirmation utilisera le prix revérifié côté serveur.</p>
     <button class="btn btn-principal" data-ticket="previsualiser" ${montantOk && soldeOk && prixU != null ? "" : "disabled"}>
-      ${t.mode === "achat" ? "Acheter" : "Vendre"} ${echap(issue.label)} pour ${fmtEclats(t.montant)}
+      Acheter ${echap(issue.label)} · ${fmtEclats(t.montant)}
     </button>
   </div>`;
 }
@@ -177,7 +251,7 @@ export function pageFiche({ params, query }) {
   }
 
   const panne = etat.demo["panne_" + m.source.toLowerCase()];
-  if (query.issue && (!ticket || ticket.marcheId !== m.id || query.t)) ouvrirTicket(m.id, query.issue);
+  if (query.t) ouvrirTicket(m.id, query.issue, query.mode || "achat");
 
   const ip = issuePrincipale(m);
   const multi = m.issues.length > 2 || m.marketType === "MULTIPLE_CHOICE" || m.marketType === "MULTIPLE";
@@ -275,8 +349,11 @@ export function accrocherTicket(rerendre) {
   const zone = document.getElementById("zone-ticket") || document.getElementById("feuille-basse");
   if (!zone) return;
   zone.addEventListener("input", (e) => {
-    const cible = e.target.closest("[data-ticket=montant]");
-    if (cible && ticket) { ticket.montant = Math.max(0, Number(cible.value) || 0); rafraichirSansFocus(rerendre); }
+    if (!ticket) return;
+    const m = e.target.closest("[data-ticket=montant]");
+    if (m) { ticket.montant = Math.max(0, Number(m.value) || 0); rafraichirSansFocus(rerendre); }
+    const p = e.target.closest("[data-ticket=parts]");
+    if (p) { ticket.parts = Math.max(0, Number(p.value) || 0); rafraichirSansFocus(rerendre); }
   });
   zone.addEventListener("change", (e) => {
     const sel = e.target.closest("[data-ticket=issue-select]");
@@ -286,28 +363,31 @@ export function accrocherTicket(rerendre) {
     const b = e.target.closest("[data-ticket]");
     if (!b || !ticket) return;
     const type = b.dataset.ticket;
-    if (type === "issue") { ticket.issueId = b.dataset.val; rerendre(); }
-    if (type === "mode") { ticket.mode = b.dataset.val; rerendre(); }
+    const m = marche(ticket.marcheId);
+    const pos = etat.positions.find((x) => x.marcheId === ticket.marcheId);
+    if (type === "cote") { ticket.issueId = b.dataset.val; ticket.mode = "achat"; rerendre(); }
+    if (type === "renforcer") { ticket.mode = "achat"; if (pos) ticket.issueId = pos.issueId; rerendre(); }
+    if (type === "vendre") { if (pos) { ticket.mode = "vente"; ticket.issueId = pos.issueId; ticket.parts = pos.parts; } rerendre(); }
     if (type === "rapide") { ticket.montant = Number(b.dataset.val); rerendre(); }
+    if (type === "parts-frac" && pos) { ticket.parts = Math.round(pos.parts * Number(b.dataset.val) * 100) / 100; rerendre(); }
     if (type === "retour") { ticket.etape = "saisie"; rerendre(); }
-    if (type === "reinit") { ticket.etape = "saisie"; ticket.montant = 250; rerendre(); }
+    if (type === "reinit") { ouvrirTicket(ticket.marcheId, ticket.issueId, "achat"); rerendre(); }
     if (type === "previsualiser") {
-      const m = marche(ticket.marcheId);
       const p = prixIndicatif(m, ticket.issueId, ticket.mode);
-      // Simulation de la relecture serveur : légère dérive, forte si la bascule démo est active
       const derive = etat.demo.prix_modifie ? 0.04 : (Math.random() - 0.5) * 0.006;
       ticket.prixServeur = Math.min(0.99, Math.max(0.01, p + derive));
       ticket.etape = "confirmation";
       rerendre();
     }
     if (type === "executer") {
-      const m = marche(ticket.marcheId);
       const vn = etat.valeurNominale;
+      const estVente = ticket.mode === "vente";
+      const parts = estVente ? ticket.parts : ticket.montant / (ticket.prixServeur * vn);
       ticket.recu = {
         id: "tx-demo-" + Math.random().toString(36).slice(2, 8),
-        montant: ticket.montant,
+        montant: estVente ? parts * ticket.prixServeur * vn : ticket.montant,
         prix: ticket.prixServeur * vn,
-        parts: ticket.montant / (ticket.prixServeur * vn)
+        parts
       };
       ticket.etape = "succes";
       rerendre();
@@ -328,8 +408,7 @@ function rafraichirSansFocus(rerendre) {
 
 export function ticketPourFeuille(marcheId, issueId) {
   ouvrirTicket(marcheId, issueId);
-  const m = marche(marcheId);
-  return htmlTicket(m);
+  return htmlTicket(marche(marcheId));
 }
 export function htmlTicketCourant() {
   if (!ticket) return "";

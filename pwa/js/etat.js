@@ -17,6 +17,7 @@ function sauver() {
     favoris: [...etat.favoris],
     claimsRecuperes: [...etat.claimsRecuperes],
     notifsLues: [...etat.notifsLues],
+    notifsVues: [...etat.notifsVues],
     theme: etat.theme,
     solde: etat.solde
   }));
@@ -37,7 +38,8 @@ export const etat = {
   solde: typeof memo.solde === "number" ? memo.solde : SOLDE_DEMO,
   favoris: new Set(memo.favoris || ["pm-fed-juillet", "mf-greve-sncf"]),
   claimsRecuperes: new Set(memo.claimsRecuperes || []),
-  notifsLues: new Set(memo.notifsLues || []),
+  notifsLues: new Set(memo.notifsLues || []),   // ouvertes individuellement (retire la pastille de la ligne)
+  notifsVues: new Set(memo.notifsVues || []),   // simplement consultées (retire le badge de la cloche)
   theme: memo.theme || "sombre",
 
   // Bascules de la barre démo (états section 11)
@@ -69,12 +71,23 @@ export function basculerFavori(id) {
   notifier();
 }
 
-export function notificationsNonLues() {
-  return NOTIFICATIONS.filter((n) => !etat.notifsLues.has(n.id) && !n.lu);
+// Badge de la cloche : notifications ni consultées ni déjà lues à l'origine.
+export function notificationsNonVues() {
+  return NOTIFICATIONS.filter((n) => !etat.notifsVues.has(n.id) && !n.lu);
 }
 export function toutesNotifications() { return NOTIFICATIONS; }
-export function marquerNotifLue(id) { etat.notifsLues.add(id); notifier(); }
-export function marquerToutLu() { NOTIFICATIONS.forEach((n) => etat.notifsLues.add(n.id)); notifier(); }
+export function marquerNotifLue(id) { etat.notifsLues.add(id); etat.notifsVues.add(id); notifier(); }
+export function marquerToutLu() {
+  NOTIFICATIONS.forEach((n) => { etat.notifsLues.add(n.id); etat.notifsVues.add(n.id); });
+  notifier();
+}
+// Ouvrir le centre de notifications suffit à éteindre le badge, sans forcer à
+// ouvrir chaque ligne : on les a vues, elles ne nous intéressent peut-être pas.
+export function marquerToutesVues() {
+  let change = false;
+  NOTIFICATIONS.forEach((n) => { if (!etat.notifsVues.has(n.id)) { etat.notifsVues.add(n.id); change = true; } });
+  if (change) notifier();
+}
 
 export function etatClaim(c) {
   if (etat.claimsRecuperes.has(c.id)) return "CLAIMED";

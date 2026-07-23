@@ -72,8 +72,8 @@ function cartePosition(pos, deplie) {
       <span style="flex:1"></span>
       <a class="btn btn-discret" href="#/marche/${m.id}">Voir</a>
       ${m.status === "OPEN" && m.tradable ? `
-        <a class="btn btn-discret" href="#/marche/${m.id}?issue=${pos.issueId}&t=1">Renforcer</a>
-        <a class="btn" href="#/marche/${m.id}?issue=${pos.issueId}&t=1">Vendre</a>` : ""}
+        <a class="btn btn-discret" href="#/marche/${m.id}?issue=${pos.issueId}&mode=achat&t=1">Renforcer</a>
+        <a class="btn" href="#/marche/${m.id}?issue=${pos.issueId}&mode=vente&t=1">Vendre</a>` : ""}
       <button class="btn btn-discret" data-action="deplier-pos" data-pos="${pos.id}">${deplie ? "Replier" : "Détail"}</button>
     </div>
     ${deplie ? `<div class="pos-detail">

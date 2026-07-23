@@ -21,8 +21,8 @@ et à un état d'interface vérifiable dans le prototype.
 | 13 | Position favorable et défavorable | `pos-fed` (OUI +8,4 pts), `pos-psg` (NON -6 pts) | Cartes En jeu, formulations exactes |
 | 14 | Vente partielle | `pos-shutdown` (2,84 parts vendues) | Exposition nette réduite, chronologie de vente |
 | 15 | Marché fermé en attente | `mf-canicule-juillet` + `pos-canicule` | « Fermé · résolution en attente », trading masqué |
-| 16 | Victoire avec claim non récupéré | `claim-shutdown` (1 240 Éclats, CLAIMABLE) | Bandeau, bouton « Récupérer 1 240 Éclats » |
-| 17 | Récupération en cours | `claim-encours` (CLAIMING) | Bouton désactivé « Récupération… » |
+| 16 | Victoire avec claim non récupéré | `claim-shutdown` (1 240 Éclats, CLAIMABLE), `claim-encours` (265, CLAIMABLE) | Bandeau, boutons « Récupérer X Éclats » |
+| 17 | Récupération en cours (état CLAIMING) | transitoire au clic sur un claim (~900 ms) | Bouton désactivé « Récupération… » puis état final ; jamais figé en dur |
 | 18 | Gain déjà récupéré | `claim-fait` (CLAIMED) | Bouton gris permanent « Gain récupéré · +412 Éclats » |
 | 19 | Défaite | `def-eurusd` (-300) | Liste sobre des perdus, P&L réalisé |
 | 20 | Annulation avec remboursement | `claim-metro` (REFUND_CLAIMABLE, 180) | Bouton « Récupérer le remboursement », raison affichée |

@@ -430,6 +430,32 @@ a.carte:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--border
   border-radius: 7px; padding: 5px 2px; font-size: 0.8rem; color: var(--text-2); min-height: 32px;
 }
 .raccourcis button:hover { border-color: var(--accent); color: var(--text-1); }
+/* Choix du camp : deux grands boutons de prix explicites */
+.ticket-cotes { display: flex; gap: 10px; }
+.cote {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 12px 6px; border-radius: 12px; border: 1.5px solid var(--border);
+  background: var(--surface-2); transition: border-color 120ms ease, background 120ms ease;
+}
+.cote-label { font-weight: 700; font-size: 0.8rem; letter-spacing: 0.5px; }
+.cote-prix { font-weight: 700; font-size: 1.5rem; font-variant-numeric: tabular-nums; }
+.cote-note { font-size: 0.72rem; color: var(--text-3); }
+.cote-oui.actif { border-color: var(--yes); background: var(--yes-muted); color: var(--yes); }
+.cote-non.actif { border-color: var(--no); background: var(--no-muted); color: var(--no); }
+.cote-oui:hover { border-color: var(--yes); }
+.cote-non:hover { border-color: var(--no); }
+.cote.actif .cote-note { color: inherit; opacity: 0.8; }
+
+/* Encart « Votre position » dans le ticket */
+.ticket-position {
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 11px;
+  padding: 10px 12px; display: flex; flex-direction: column; gap: 6px;
+}
+.tp-ligne { display: flex; align-items: center; justify-content: space-between; font-weight: 600; }
+.tp-chiffres { display: flex; flex-wrap: wrap; gap: 6px; font-size: 0.8rem; color: var(--text-2); }
+.ticket-actions-pos { display: flex; gap: 8px; margin-top: 2px; }
+.ticket-actions-pos .btn { flex: 1; min-height: 34px; padding: 6px; }
+
 .ticket-detail { font-size: 0.84rem; display: flex; flex-direction: column; gap: 4px; }
 .ticket-detail div { display: flex; justify-content: space-between; }
 .ticket-detail dt { color: var(--text-3); }

@@ -1,5 +1,5 @@
 // Bootstrap du prototype Éclats Marchés (Phase A).
-import { etat, surChangement, notifier, basculerFavori, notificationsNonLues, marquerNotifLue, marquerToutLu, recupererClaim, reglerDemo, basculerTheme, totalARecuperer, marche } from "./etat.js";
+import { etat, surChangement, notifier, basculerFavori, notificationsNonVues, marquerNotifLue, marquerToutLu, marquerToutesVues, recupererClaim, reglerDemo, basculerTheme, totalARecuperer, marche } from "./etat.js";
 import { enregistrer, demarrerRouteur, routeCourante } from "./router.js";
 import { fmt, fmtEclats, compteReboursCourt } from "./ui.js";
 import { pageAccueil } from "./pages/accueil.js";
@@ -28,6 +28,8 @@ const contenu = document.getElementById("contenu");
 const rendre = demarrerRouteur(contenu, (r) => {
   majNavigation(r);
   if (r.page === "marche") accrocherTicket(rendre);
+  // Consulter le centre de notifications éteint le badge de la cloche.
+  if (r.page === "notifications") marquerToutesVues();
 });
 
 // ---------- En-tête, badges, bandeaux ----------
@@ -39,10 +41,10 @@ function majEntete() {
   elClaims.hidden = claims <= 0;
   if (claims > 0) elClaims.textContent = `+ ${fmt(claims)} à récupérer`;
 
-  const nonLues = notificationsNonLues().length;
+  const nonVues = notificationsNonVues().length;
   const badgeN = document.getElementById("badge-notifs");
-  badgeN.hidden = nonLues === 0;
-  badgeN.textContent = nonLues;
+  badgeN.hidden = nonVues === 0;
+  badgeN.textContent = nonVues;
 
   const badgeE = document.getElementById("badge-enjeu");
   badgeE.hidden = etat.positions.length === 0;
