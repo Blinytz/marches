@@ -1,4 +1,4 @@
-// Bootstrap du prototype Éclats Marchés (Phase A).
+// Bootstrap du prototype Marchés (Phase A).
 import { etat, surChangement, notifier, basculerFavori, notificationsNonVues, marquerNotifLue, marquerToutLu, marquerToutesVues, recupererClaim, reglerDemo, basculerTheme, totalARecuperer, marche } from "./etat.js";
 import { enregistrer, demarrerRouteur, routeCourante } from "./router.js";
 import { fmt, fmtEclats, compteReboursCourt } from "./ui.js";

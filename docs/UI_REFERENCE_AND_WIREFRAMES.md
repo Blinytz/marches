@@ -1,4 +1,4 @@
-# UI_REFERENCE_AND_WIREFRAMES.md · Éclats Marchés
+# UI_REFERENCE_AND_WIREFRAMES.md · Marchés
 
 Wireframes basse fidélité originaux (livrable Phase A). Conçus sans capture Polymarket, à partir
 du hand-off, des APIs réelles observées en Phase 0, de l'interface publique Manifold et des
@@ -12,7 +12,7 @@ des exemples.
 
 ```text
 +------------------------------------------------------------------------------+
-| ✦ Éclats Marchés   [Recherche............ /]   ⚡En direct  🔔3   ◇ 12 450   |
+| ✦ Marchés   [Recherche............ /]   ⚡En direct  🔔3   ◇ 12 450   |
 |                                                          + 1 240 à récupérer |
 +------------------------------------------------------------------------------+
 | Pour moi | 24 h | France & Europe | Nouveaux | Populaires | Thèmes | En jeu● |

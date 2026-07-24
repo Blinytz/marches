@@ -1,13 +1,13 @@
 {
   "schemaVersion": 1,
-  "appId": "eclats-marches",
-  "displayName": "Éclats Marchés",
+  "appId": "marches",
+  "displayName": "Marchés",
   "description": "Marchés prédictifs personnels inspirés de Polymarket.",
   "lifecycle": "polish",
   "ownership": {
     "audience": "single-user",
     "repositoryVisibility": "private",
-    "repository": "Blinytz/eclats-marches"
+    "repository": "Blinytz/marches"
   },
   "data": {
     "storage": ["fixtures", "localStorage"],

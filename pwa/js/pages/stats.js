@@ -2,7 +2,7 @@
 //
 // Règle imposée par l'utilisateur : NE JAMAIS présenter le solde global d'Éclats
 // comme une performance. Le solde bouge avec les autres applications de
-// l'écosystème. Ici, tout est scopé à Éclats Marchés : gains/pertes, résultat, ROI
+// l'écosystème. Ici, tout est scopé à Marchés : gains/pertes, résultat, ROI
 // se calculent uniquement à partir de l'activité de trading de cette appli.
 //
 // Phase A : les valeurs calculables le sont réellement à partir des fixtures ;
@@ -107,7 +107,7 @@ export function pageStats() {
 
   return `
     <h1>Statistiques</h1>
-    <p class="muet" style="margin-top:-6px">Toutes ces stats ne concernent que votre activité sur Éclats Marchés.
+    <p class="muet" style="margin-top:-6px">Toutes ces stats ne concernent que votre activité sur Marchés.
       Elles n'incluent pas votre solde global d'Éclats, qui dépend aussi des autres applications de l'écosystème.</p>
 
     <div class="rangee-titre"><h2>📈 Résultat de trading</h2></div>

@@ -1,4 +1,4 @@
-# DATA_SOURCES.md · Éclats Marchés
+# DATA_SOURCES.md · Marchés
 
 ## Polymarket (statut Phase 0 : SUPPORTED, voir POLYMARKET_CONNECTIVITY_REPORT.md)
 

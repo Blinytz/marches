@@ -1,4 +1,4 @@
-# DECISIONS.md · Éclats Marchés
+# DECISIONS.md · Marchés
 
 Journal des hypothèses et décisions prises pendant l'implémentation, comme exigé par la
 section 0 du hand-off. La référence produit reste `HANDOFF_CLAUDE_CODE_ECLATS_MARKETS_V1_5.md`.

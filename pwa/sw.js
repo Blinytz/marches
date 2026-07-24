@@ -1,6 +1,6 @@
 // Service worker minimal Phase A : cache réseau d'abord, repli cache.
 // La stratégie complète (offline, rattrapage à l'ouverture) arrive avec les données réelles.
-const CACHE = "eclats-marches-proto-v1";
+const CACHE = "marches-proto-v1";
 
 self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(clients.claim()));

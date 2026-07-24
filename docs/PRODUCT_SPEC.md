@@ -1,4 +1,4 @@
-# PRODUCT_SPEC.md · Éclats Marchés
+# PRODUCT_SPEC.md · Marchés
 
 **Source de vérité produit : `HANDOFF_CLAUDE_CODE_ECLATS_MARKETS_V1_5.md`** (copie dans ce dossier).
 Ce fichier ne duplique pas le hand-off ; il fixe la lecture qui en est faite et renvoie aux

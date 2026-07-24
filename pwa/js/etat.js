@@ -6,10 +6,15 @@ import {
   PREFS_DEMO, REGLAGES, ETAT_SOURCES_DEFAUT, VALEUR_NOMINALE
 } from "./data/fixtures.js";
 
-const CLE_STOCKAGE = "eclats-marches-proto";
+const CLE_STOCKAGE = "marches-proto";
+const CLE_STOCKAGE_HISTORIQUE = "eclats-marches-proto";
 
 function charger() {
-  try { return JSON.parse(localStorage.getItem(CLE_STOCKAGE)) || {}; }
+  try {
+    const valeur = localStorage.getItem(CLE_STOCKAGE)
+      || localStorage.getItem(CLE_STOCKAGE_HISTORIQUE);
+    return JSON.parse(valeur) || {};
+  }
   catch { return {}; }
 }
 function sauver() {

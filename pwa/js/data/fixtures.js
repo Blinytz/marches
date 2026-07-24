@@ -1,4 +1,4 @@
-// Fixtures Phase A · Éclats Marchés
+// Fixtures Phase A · Marchés
 // Données 100 % fictives couvrant les scénarios exigés par la section 26 (Phase A) du hand-off.
 // Cartographie scénario -> fixture : voir tests/fixtures/README.md
 // Les dates sont calculées relativement au chargement pour que comptes à rebours et
@@ -491,7 +491,7 @@ export const LEDGER = [
   { t: ilYA(300), montant: -120, source: "marches_mise", marcheId: "mf-canicule-juillet", libelle: "Achat OUI · Canicule 42C" },
   { t: ilYA(690), montant: 412, source: "marches_gain", marcheId: "mf-spacex-lancement", libelle: "Gain récupéré · Starship flight 11" },
   { t: ilYA(750), montant: -150, source: "marches_mise", marcheId: "mf-spacex-lancement", libelle: "Achat OUI · Starship flight 11" },
-  { t: ilYA(2000), montant: 5000, source: "paris_sportifs_gain", application: "Paris Sportifs", libelle: "Gain récupéré dans Paris Sportifs" }
+  { t: ilYA(2000), montant: 5000, source: "paris_sportifs_gain", application: "Pronos", libelle: "Gain récupéré dans Pronos" }
 ];
 
 export const SOLDE_DEMO = 12450;

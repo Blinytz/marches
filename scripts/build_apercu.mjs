@@ -97,7 +97,7 @@ const corps = html.slice(html.indexOf("<body>") + 6, html.lastIndexOf("</body>")
 
 const css = lire("css/style.css");
 
-const page = `<title>Éclats Marchés · prototype Phase A</title>
+const page = `<title>Marchés · prototype Phase A</title>
 <style>
 ${css}
 /* L'aperçu publié n'a pas de barre d'adresse : on garde le fond de l'app partout */

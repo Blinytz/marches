@@ -1,11 +1,11 @@
-# Éclats Marchés
+# Marchés
 
 Cette application adopte le socle commun de l'écosystème via
 `ecosystem.json`. Son adaptateur v1 est strictement en lecture seule : le solde
 et le ledger restent simulés et ne sont pas encore partagés.
 
 La page Paramètres permet d'exporter une sauvegarde JSON complète. Son journal
-d'Éclats respecte le contrat commun v1 et peut être prévisualisé dans Éclats Central,
+d'Éclats respecte le contrat commun v1 et peut être prévisualisé dans Centrale,
 sans transfert ni modification du solde source.
 
 Marchés de prédiction personnels en Éclats : les questions, prix et résolutions proviennent de

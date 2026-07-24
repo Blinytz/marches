@@ -1,6 +1,6 @@
 import { convertirLedgerEclats } from "./eclats-adapter.js";
 
-const APP_ID = "eclats-marches";
+const APP_ID = "marches";
 const TYPE_EXPORT = "eclats-application-snapshot";
 
 function tableau(valeur) {
@@ -17,7 +17,7 @@ export function creerExportEclatsMarches(etat, {
     schemaVersion: 1,
     exportType: TYPE_EXPORT,
     appId: APP_ID,
-    displayName: "Éclats Marchés",
+    displayName: "Marchés",
     exportedAt: new Date(exportedAt).toISOString(),
     owner: { userId },
     eclats: {
@@ -53,7 +53,7 @@ export function telechargerExportEclatsMarches(etat, options = {}) {
   const url = URL.createObjectURL(blob);
   const lien = document.createElement("a");
   lien.href = url;
-  lien.download = `eclats-marches-export-${date}.json`;
+  lien.download = `marches-export-${date}.json`;
   lien.click();
   URL.revokeObjectURL(url);
   return contenu;

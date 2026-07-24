@@ -1,4 +1,4 @@
-# UI_SPEC.md · Éclats Marchés
+# UI_SPEC.md · Marchés
 
 Règles normatives : sections 8 à 11 du hand-off. Wireframes : UI_REFERENCE_AND_WIREFRAMES.md.
 

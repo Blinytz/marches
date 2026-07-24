@@ -50,7 +50,7 @@ export function pageParametres({ query }) {
   const preferences = `
     <div class="panneau"><h3>Sauvegarde et interopérabilité</h3>
       <p class="muet">Télécharge une copie complète des données locales de cette application.
-        Le fichier contient aussi le journal d'Éclats au format commun, lisible par Éclats Central.</p>
+        Le fichier contient aussi le journal d'Éclats au format commun, lisible par Centrale.</p>
       <button class="btn btn-primaire" data-action="exporter-donnees">Exporter mes données (JSON)</button>
       <p class="tres-muet">L'export est local et en lecture seule : il ne transfère aucun solde et ne contacte aucun serveur.</p>
     </div>

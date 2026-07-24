@@ -1,4 +1,4 @@
-# Plan de réalisation · Éclats Marchés v1.5
+# Plan de réalisation · Marchés v1.5
 
 Décliné du plan imposé (section 26 du hand-off), adapté à la stack décidée (D-001, D-002).
 Statuts : [x] fait · [~] en cours · [ ] à faire.

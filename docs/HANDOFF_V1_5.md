@@ -1,4 +1,4 @@
-# Éclats Marchés — Hand-off complet pour Claude Code
+# Marchés — Hand-off complet pour Claude Code
 
 Version du document : 1.3  
 Périmètre produit : version 1.5 — Polymarket + Manifold  
@@ -31,7 +31,7 @@ Le résultat attendu n’est ni un clone graphique de Polymarket ni un prototype
 
 ### 1.1 Proposition de valeur
 
-Éclats Marchés permet de consulter des marchés de prédiction provenant de Polymarket et de Manifold, puis de prendre des positions virtuelles avec des Éclats. Les questions, les probabilités externes, les évolutions de prix et les résolutions proviennent des plateformes sources. Aucune transaction réelle, aucun portefeuille crypto et aucun pari en argent ne sont réalisés sur ces plateformes.
+Marchés permet de consulter des marchés de prédiction provenant de Polymarket et de Manifold, puis de prendre des positions virtuelles avec des Éclats. Les questions, les probabilités externes, les évolutions de prix et les résolutions proviennent des plateformes sources. Aucune transaction réelle, aucun portefeuille crypto et aucun pari en argent ne sont réalisés sur ces plateformes.
 
 L’utilisateur doit retrouver la sensation d’un véritable marché de prédiction :
 
@@ -123,7 +123,7 @@ L’application est mono-utilisateur mais doit utiliser une authentification ré
 
 ### 4.2 Source du solde
 
-Le solde des Éclats appartient à l’écosystème central, pas au frontend d’Éclats Marchés. **Claude Code doit connecter l’application à l’écosystème Supabase déjà en place et au même portefeuille utilisé par les autres applications qui gagnent ou dépensent des Éclats.** Il doit commencer par inspecter le schéma, les fonctions et les conventions existants. Ne pas créer en production un second solde indépendant, une seconde monnaie ou une table concurrente.
+Le solde des Éclats appartient à l’écosystème central, pas au frontend d’Marchés. **Claude Code doit connecter l’application à l’écosystème Supabase déjà en place et au même portefeuille utilisé par les autres applications qui gagnent ou dépensent des Éclats.** Il doit commencer par inspecter le schéma, les fonctions et les conventions existants. Ne pas créer en production un second solde indépendant, une seconde monnaie ou une table concurrente.
 
 Créer un adaptateur `EclatsWalletProvider` autour de l’existant afin d’isoler le moteur de marché du schéma concret. Pour le prototype visuel et les tests uniquement, un provider fictif compatible peut être utilisé :
 
@@ -972,7 +972,7 @@ Les variables d’environnement fournissent seulement les valeurs de bootstrap. 
 
 ### 10.1 Identité
 
-Nom de travail : **Éclats Marchés**. Ne pas utiliser le logo, le nom graphique ou les éléments propriétaires de Polymarket/Manifold autrement que comme badges textuels de source et liens attributifs.
+Nom de travail : **Marchés**. Ne pas utiliser le logo, le nom graphique ou les éléments propriétaires de Polymarket/Manifold autrement que comme badges textuels de source et liens attributifs.
 
 ### 10.2 Direction
 
@@ -993,7 +993,7 @@ L’utilisateur ne peut pas accéder au site Polymarket depuis la France et ne f
 Claude Code doit construire l’interface à partir de :
 
 - ce hand-off, qui constitue la référence fonctionnelle principale ;
-- wireframes originaux créés pour Éclats Marchés ;
+- wireframes originaux créés pour Marchés ;
 - l’interface publique de Manifold lorsqu’elle est accessible ;
 - la documentation officielle Polymarket ;
 - les champs, hiérarchies et exemples réellement renvoyés par les APIs publiques ;
@@ -1765,7 +1765,7 @@ Fournir `.env.example` sans aucun secret.
 5. Accueil, recherche, fiche, ticket, En jeu, portefeuille, résultats, favoris et paramètres.
 6. Tous les états d’erreur et chargement.
 7. Prototype haute fidélité navigable.
-8. Captures du **prototype Éclats Marchés** aux quatre largeurs.
+8. Captures du **prototype Marchés** aux quatre largeurs.
 
 Le fichier de fixtures doit inclure au minimum :
 

@@ -1,4 +1,4 @@
-// Spike de connectivité Éclats Marchés · Phase 0 (section 12.0 du handoff)
+// Spike de connectivité Marchés · Phase 0 (section 12.0 du handoff)
 // Lecture seule, aucun VPN/proxy, aucune mutation. Node >= 22 (fetch + WebSocket natifs).
 // Sortie : JSON sur stdout.
 

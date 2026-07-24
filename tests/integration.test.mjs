@@ -16,7 +16,7 @@ test("convertit le ledger local sans le modifier", () => {
   assert.equal(mouvements[0].amount, "-100");
   assert.equal(mouvements[1].amount, "250.5");
   assert.equal(mouvements[1].kind, "gain");
-  assert.match(mouvements[1].idempotencyKey, /^eclats-marches:/);
+  assert.match(mouvements[1].idempotencyKey, /^marches:/);
 });
 
 test("le curseur temporel est strictement postérieur", () => {
@@ -56,7 +56,7 @@ test("produit une sauvegarde complète au format commun sans modifier l'état", 
   });
 
   assert.equal(sauvegarde.exportType, "eclats-application-snapshot");
-  assert.equal(sauvegarde.appId, "eclats-marches");
+  assert.equal(sauvegarde.appId, "marches");
   assert.equal(sauvegarde.eclats.movements.length, 2);
   assert.equal(sauvegarde.integrity.movementCount, 2);
   assert.deepEqual(sauvegarde.localState.favorites, ["m1"]);

@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "eclats-marches",
+      "name": "marches",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "C:\\Users\\flxjr\\OneDrive\\Bureau\\eclats-marches\\pwa"],
+      "runtimeArgs": ["-m", "http.server", "8123", "--directory", "C:\\Users\\flxjr\\OneDrive\\Documents\\Ecosystème Eclats\\apps\\marches\\pwa"],
       "port": 8123
     }
   ]

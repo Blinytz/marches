@@ -1,6 +1,6 @@
-<title>Éclats Marchés · prototype Phase A</title>
+<title>Marchés · prototype Phase A</title>
 <style>
-/* Éclats Marchés · système visuel « vif, clair et ludique »
+/* Marchés · système visuel « vif, clair et ludique »
    Direction validée le 22/07 : thème clair moderne, coloré, avec des touches de jeu.
    Pas de thème sombre. L'app assume l'aspect « jeu en Éclats ».
 
@@ -743,7 +743,7 @@ html { background: var(--bg); }
   </aside>
 
   <header id="entete">
-    <a class="logo" href="#/accueil">✦ <span class="logo-texte">Éclats Marchés</span></a>
+    <a class="logo" href="#/accueil">✦ <span class="logo-texte">Marchés</span></a>
     <div id="recherche-globale">
       <input id="champ-recherche" type="search" placeholder="Rechercher un marché…  ( / )"
              autocomplete="off" aria-label="Recherche globale">
@@ -790,7 +790,7 @@ html { background: var(--bg); }
 <script type="module">
 
 /* ================= js/data/fixtures.js ================= */
-// Fixtures Phase A · Éclats Marchés
+// Fixtures Phase A · Marchés
 // Données 100 % fictives couvrant les scénarios exigés par la section 26 (Phase A) du hand-off.
 // Cartographie scénario -> fixture : voir tests/fixtures/README.md
 // Les dates sont calculées relativement au chargement pour que comptes à rebours et
@@ -1283,7 +1283,7 @@ const LEDGER = [
   { t: ilYA(300), montant: -120, source: "marches_mise", marcheId: "mf-canicule-juillet", libelle: "Achat OUI · Canicule 42C" },
   { t: ilYA(690), montant: 412, source: "marches_gain", marcheId: "mf-spacex-lancement", libelle: "Gain récupéré · Starship flight 11" },
   { t: ilYA(750), montant: -150, source: "marches_mise", marcheId: "mf-spacex-lancement", libelle: "Achat OUI · Starship flight 11" },
-  { t: ilYA(2000), montant: 5000, source: "paris_sportifs_gain", application: "Paris Sportifs", libelle: "Gain récupéré dans Paris Sportifs" }
+  { t: ilYA(2000), montant: 5000, source: "paris_sportifs_gain", application: "Pronos", libelle: "Gain récupéré dans Pronos" }
 ];
 
 const SOLDE_DEMO = 12450;
@@ -1406,10 +1406,15 @@ const ETAT_SOURCES_DEFAUT = {
 /* ================= js/etat.js ================= */
 // État global du prototype Phase A.
 // Tout est local (mémoire + localStorage) : aucune connexion réseau, aucune mutation financière.
-const CLE_STOCKAGE = "eclats-marches-proto";
+const CLE_STOCKAGE = "marches-proto";
+const CLE_STOCKAGE_HISTORIQUE = "eclats-marches-proto";
 
 function charger() {
-  try { return JSON.parse(localStorage.getItem(CLE_STOCKAGE)) || {}; }
+  try {
+    const valeur = localStorage.getItem(CLE_STOCKAGE)
+      || localStorage.getItem(CLE_STOCKAGE_HISTORIQUE);
+    return JSON.parse(valeur) || {};
+  }
   catch { return {}; }
 }
 function sauver() {
@@ -3005,7 +3010,7 @@ function pageParametres({ query }) {
   const preferences = `
     <div class="panneau"><h3>Sauvegarde et interopérabilité</h3>
       <p class="muet">Télécharge une copie complète des données locales de cette application.
-        Le fichier contient aussi le journal d'Éclats au format commun, lisible par Éclats Central.</p>
+        Le fichier contient aussi le journal d'Éclats au format commun, lisible par Centrale.</p>
       <button class="btn btn-primaire" data-action="exporter-donnees">Exporter mes données (JSON)</button>
       <p class="tres-muet">L'export est local et en lecture seule : il ne transfère aucun solde et ne contacte aucun serveur.</p>
     </div>
@@ -3102,7 +3107,7 @@ function pageNotifications() {
 //
 // Règle imposée par l'utilisateur : NE JAMAIS présenter le solde global d'Éclats
 // comme une performance. Le solde bouge avec les autres applications de
-// l'écosystème. Ici, tout est scopé à Éclats Marchés : gains/pertes, résultat, ROI
+// l'écosystème. Ici, tout est scopé à Marchés : gains/pertes, résultat, ROI
 // se calculent uniquement à partir de l'activité de trading de cette appli.
 //
 // Phase A : les valeurs calculables le sont réellement à partir des fixtures ;
@@ -3204,7 +3209,7 @@ function pageStats() {
 
   return `
     <h1>Statistiques</h1>
-    <p class="muet" style="margin-top:-6px">Toutes ces stats ne concernent que votre activité sur Éclats Marchés.
+    <p class="muet" style="margin-top:-6px">Toutes ces stats ne concernent que votre activité sur Marchés.
       Elles n'incluent pas votre solde global d'Éclats, qui dépend aussi des autres applications de l'écosystème.</p>
 
     <div class="rangee-titre"><h2>📈 Résultat de trading</h2></div>
@@ -3391,7 +3396,7 @@ function pageSucces() {
 
 
 /* ================= js/app.js ================= */
-// Bootstrap du prototype Éclats Marchés (Phase A).
+// Bootstrap du prototype Marchés (Phase A).
 
 
 // Architecture en 3 piliers. La sous-navigation dépend du pilier actif.

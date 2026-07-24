@@ -1,4 +1,4 @@
-# DATABASE.md · Éclats Marchés
+# DATABASE.md · Marchés
 
 Projet Supabase partagé de l'écosystème (`eclats`, réf `psutbulpezfdftmaqkoo`). Les tables de
 l'app cohabitent avec celles des autres apps ; préfixe `mk_` pour éviter les collisions.

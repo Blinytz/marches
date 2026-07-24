@@ -1,4 +1,4 @@
-# TRADING_ENGINE.md · Éclats Marchés
+# TRADING_ENGINE.md · Marchés
 
 Règles normatives : sections 5, 6, 7 du hand-off. Ici : leur traduction dans l'architecture retenue
 (PWA + Supabase, D-001/D-002/D-003).

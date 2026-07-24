@@ -1,7 +1,7 @@
 // Adaptateur en lecture seule vers le contrat Mouvement d'Éclats v1.
 // Il ne connecte aucun serveur et ne modifie jamais le ledger source.
 
-const APP_ID = "eclats-marches";
+const APP_ID = "marches";
 
 function empreinte(texte) {
   let hash = 2166136261;
