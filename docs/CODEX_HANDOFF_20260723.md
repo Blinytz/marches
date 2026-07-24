@@ -20,7 +20,7 @@ Le travail interrompu de Claude a été conservé dans la branche
 ## Vérification
 
 ```powershell
-node tests/run.mjs
+node tests/all.mjs
 node scripts/build_apercu.mjs
 ```
 

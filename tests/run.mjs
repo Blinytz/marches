@@ -29,7 +29,8 @@ test("le registre affiche le contexte de chaque mouvement", portfolio.includes("
 
 const jsFiles = [
   "pwa/js/app.js", "pwa/js/etat.js", "pwa/js/router.js", "pwa/js/ui.js",
-  ...readdirSync(pagesDir).filter((name) => name.endsWith(".js")).map((name) => `pwa/js/pages/${name}`)
+  ...readdirSync(pagesDir).filter((name) => name.endsWith(".js")).map((name) => `pwa/js/pages/${name}`),
+  "pwa/js/integration/eclats-adapter.js"
 ];
 for (const file of jsFiles) {
   const result = spawnSync(process.execPath, ["--check", file], { cwd: new URL(".", root), encoding: "utf8" });

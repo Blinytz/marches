@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "appId": "eclats-marches",
+  "displayName": "Éclats Marchés",
+  "description": "Marchés prédictifs personnels inspirés de Polymarket.",
+  "lifecycle": "polish",
+  "ownership": {
+    "audience": "single-user",
+    "repositoryVisibility": "private",
+    "repository": "Blinytz/eclats-marches"
+  },
+  "data": {
+    "storage": ["fixtures", "localStorage"],
+    "exportAvailable": false,
+    "productionMutationAllowed": false
+  },
+  "eclats": {
+    "mode": "local",
+    "ledger": "simulated",
+    "balanceMigration": "forbidden"
+  },
+  "commands": {
+    "install": null,
+    "dev": "python -m http.server 4321 --directory pwa",
+    "test": "node tests/all.mjs",
+    "build": "node scripts/build_apercu.mjs",
+    "lint": null
+  },
+  "integration": {
+    "contractVersion": 1,
+    "status": "readonly",
+    "adapter": "pwa/js/integration/eclats-adapter.js"
+  }
+}
