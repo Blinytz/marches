@@ -11,7 +11,7 @@
   },
   "data": {
     "storage": ["fixtures", "localStorage"],
-    "exportAvailable": false,
+    "exportAvailable": true,
     "productionMutationAllowed": false
   },
   "eclats": {

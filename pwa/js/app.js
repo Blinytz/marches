@@ -13,6 +13,7 @@ import { pageParametres } from "./pages/parametres.js";
 import { pageNotifications } from "./pages/notifications.js";
 import { pageStats } from "./pages/stats.js";
 import { pageSucces } from "./pages/succes.js";
+import { telechargerExportEclatsMarches } from "./integration/export-snapshot.js";
 
 // Architecture en 3 piliers. La sous-navigation dépend du pilier actif.
 const SOUS_NAV = {
@@ -239,6 +240,10 @@ document.body.addEventListener("click", async (e) => {
   }
   if (a === "notif-test") {
     act.textContent = "✓ Notification de test envoyée au centre interne";
+  }
+  if (a === "exporter-donnees") {
+    telechargerExportEclatsMarches(etat);
+    act.textContent = "✓ Export téléchargé";
   }
 });
 
