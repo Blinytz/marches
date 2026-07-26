@@ -33,7 +33,13 @@ const SOUS_NAV = {
     { lib: "Résultats", href: "#/resultats", actif: (r) => r.page === "resultats" },
     { lib: "Succès", href: "#/succes", actif: (r) => r.page === "succes" }
   ],
-  stats: []
+  stats: [
+    { lib: "Vue d'ensemble", href: "#/stats", actif: (r) => r.page === "stats" && !r.query.vue },
+    { lib: "Précision", href: "#/stats?vue=precision", actif: (r) => r.page === "stats" && r.query.vue === "precision" },
+    { lib: "Rentabilité", href: "#/stats?vue=rentabilite", actif: (r) => r.page === "stats" && r.query.vue === "rentabilite" },
+    { lib: "Comportement", href: "#/stats?vue=comportement", actif: (r) => r.page === "stats" && r.query.vue === "comportement" },
+    { lib: "Records", href: "#/stats?vue=records", actif: (r) => r.page === "stats" && r.query.vue === "records" }
+  ]
 };
 
 function sectionPrimaire(page) {

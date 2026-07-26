@@ -13,6 +13,7 @@ function test(name, condition) {
 const app = read("pwa/js/app.js");
 const index = read("pwa/index.html");
 const portfolio = read("pwa/js/pages/portefeuille.js");
+const stats = read("pwa/js/pages/stats.js");
 const pagesDir = new URL("pwa/js/pages/", root);
 const pageText = readdirSync(pagesDir)
   .filter((name) => name.endsWith(".js"))
@@ -26,6 +27,8 @@ test("Succès est une sous-page de Résultats", app.includes('lib: "Succès"') &
 test("aucun libellé utilisateur P&L ne subsiste", !/P(?:&amp;|&)L/.test(pageText));
 test("l'historique relie chaque événement à son marché", portfolio.includes('href="#/marche/${c.pos.marcheId}"'));
 test("le registre affiche le contexte de chaque mouvement", portfolio.includes("l.application") && portfolio.includes("l.marcheId"));
+test("les statistiques proposent des sous-menus", app.includes('href: "#/stats?vue=precision"') && app.includes('href: "#/stats?vue=records"') && app.includes('href: "#/stats?vue=rentabilite"') && app.includes('href: "#/stats?vue=comportement"'));
+test("la page Statistiques rend une sous-section selon la vue", stats.includes("route.query") && stats.includes("sections[vue]"));
 
 const jsFiles = [
   "pwa/js/app.js", "pwa/js/etat.js", "pwa/js/router.js", "pwa/js/ui.js",
