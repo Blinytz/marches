@@ -171,6 +171,7 @@ export function grapheDetaille(history, { h = 220, marqueurs = [], ligneEntree =
 export function boutonsOuiNon(m, taille = "") {
   if (!m.tradable || m.status !== "OPEN" || m.marketType !== "BINARY") return "";
   const oui = m.issues.find((i) => i.id === "oui"), non = m.issues.find((i) => i.id === "non");
+  if (!oui || !non) return "";
   return `<div class="boutons-oui-non ${taille}">
     <button class="btn-oui" data-action="ticket" data-marche="${m.id}" data-issue="oui">OUI ${oui.prob != null ? Math.round(oui.prob * 100) : "?"}</button>
     <button class="btn-non" data-action="ticket" data-marche="${m.id}" data-issue="non">NON ${non.prob != null ? Math.round(non.prob * 100) : "?"}</button>

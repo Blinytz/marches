@@ -40,6 +40,20 @@ Points observés au spike (21/07/2026) :
 
 ## Normalisation
 
+### Branchement navigateur du 28/07/2026
+
+- `pwa/js/api/normalize.js` contient les normaliseurs purs et testés des deux sources.
+- `pwa/js/api/market-data.js` charge 100 événements Polymarket classés par volume sur 24 h et
+  jusqu'à 500 marchés Manifold, dont les 150 ouverts les plus actifs sont conservés.
+- Le dernier catalogue réel est mis en cache local pendant les indisponibilités réseau.
+- Les sources sont indépendantes : l'échec de l'une n'empêche pas l'affichage de l'autre.
+- Le catalogue réel ne contient pas de données financières Éclats. Les anciennes fixtures
+  nécessaires aux positions et résultats simulés sont conservées hors du catalogue public.
+- `pwa/js/api/market-detail.js` enrichit à la demande une fiche Polymarket avec `/book`,
+  `/midpoint` et `/prices-history`, ou une fiche Manifold avec `/market/{id}`.
+- Un seul WebSocket est maintenu : celui de la fiche actuellement ouverte. Il est fermé au
+  changement de page et se reconnecte après une coupure, sans jamais envoyer d'ordre.
+
 Modèle commun `NormalizedMarket` (section 14 du hand-off), conservé tel quel avec `rawPayload`
 JSONB. Clé d'unicité : `(source, external_id)`. Aucune déduplication inter-sources.
 

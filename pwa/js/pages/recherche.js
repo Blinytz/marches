@@ -79,7 +79,7 @@ function lien(q, patch) {
 }
 
 export function pageRecherche({ query: q }) {
-  if (etat.demo.chargement) {
+  if (etat.demo.chargement || etat.chargementCatalogue) {
     return `<h1>Recherche</h1><div class="grille-cartes">${skeletons(9)}</div>`;
   }
 

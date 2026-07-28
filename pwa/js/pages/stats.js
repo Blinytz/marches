@@ -18,7 +18,16 @@ function demoTag() {
   return `<span class="pastille pastille-off" title="Sera calculé sur l'historique réel en Phase C/D">démonstration</span>`;
 }
 
-export function pageStats() {
+const TITRES_VUE = {
+  ensemble: "Vue d'ensemble",
+  precision: "Précision de vos pronostics",
+  rentabilite: "Rentabilité",
+  comportement: "Comportement et risque",
+  records: "Records et séries"
+};
+
+export function pageStats(route = {}) {
+  const vue = (route.query && route.query.vue) || "ensemble";
   if (etat.demo.chargement) {
     return `<h1>Statistiques</h1>${Array(3).fill('<div class="panneau skeleton" style="height:120px; margin-top:14px"></div>').join("")}`;
   }
@@ -105,11 +114,8 @@ export function pageStats() {
   const semaines = 16;
   const heatmap = Array.from({ length: semaines * 7 }, jour);
 
-  return `
-    <h1>Statistiques</h1>
-    <p class="muet" style="margin-top:-6px">Toutes ces stats ne concernent que votre activité sur Marchés.
-      Elles n'incluent pas votre solde global d'Éclats, qui dépend aussi des autres applications de l'écosystème.</p>
-
+  // ---- Sections (une par sous-menu) ----
+  const secEnsemble = `
     <div class="rangee-titre"><h2>📈 Résultat de trading</h2></div>
     <div class="panneau">
       <div class="stats-grille">
@@ -121,16 +127,15 @@ export function pageStats() {
       <div style="margin-top:14px">${sparkline(equity, { w: 320, h: 60 })}
         <div class="lib tres-muet">Résultat réalisé cumulé sur cette appli</div></div>
     </div>
-
     <div class="rangee-titre"><h2>◆ Éclats gagnés et perdus (appli)</h2></div>
     <div class="panneau"><div class="stats-grille">
       ${tuile(fmt(gainsEncaisses), "Gains encaissés", "vert")}
       ${tuile(fmt(remboursements), "Remboursements")}
       ${tuile(fmt(pertesSeches), "Pertes sèches", "rouge")}
       ${tuile(fmtSigne(Math.round(gainsNet + pertesNet)), "Gain net de trading", (gainsNet + pertesNet) >= 0 ? "vert" : "rouge")}
-    </div></div>
+    </div></div>`;
 
-    <div class="rangee-titre"><h2>🎲 Précision de vos pronostics</h2></div>
+  const secPrecision = `
     <div class="panneau">
       <div class="stats-grille">
         ${tuile(fmt(winRate) + " %", `Taux de réussite (${nbG}/${nbG + nbP})`)}
@@ -150,11 +155,11 @@ export function pageStats() {
           <span class="tres-muet">${c.n} paris</span>
         </div>`).join("")}
       </div>
-    </div>
+    </div>`;
 
+  const secRentabilite = `
     ${tableRentabilite("Rentabilité par source", parSource)}
     ${tableRentabilite("Rentabilité par thème", parTheme)}
-
     <div class="panneau"><h3>Rentabilité par horizon et par cote ${demoTag()}</h3>
       <div class="defilement-x"><table class="tableau">
         <thead><tr><th>Découpage</th><th>Misé</th><th>Résultat</th><th>Rendement</th></tr></thead>
@@ -168,9 +173,9 @@ export function pageStats() {
           <tr><td>Paris NON</td><td class="num">350</td><td class="num rouge">-5</td><td class="num rouge">-1 %</td></tr>
         </tbody>
       </table></div>
-    </div>
+    </div>`;
 
-    <div class="rangee-titre"><h2>🏅 Records</h2></div>
+  const secRecords = `
     <div class="stats-grille">
       ${tuile("+" + fmt(meilleur?.v || 0), "Meilleur gain net", "vert")}
       ${tuile(fmt(pire?.v || 0), "Pire perte", "rouge")}
@@ -181,15 +186,14 @@ export function pageStats() {
       <p class="muet">🥇 Meilleur trade : <strong>${echap(meilleur?.t || "?")}</strong> (${fmtSigne(meilleur?.v || 0)} Éclats)</p>
       <p class="muet">💔 Pire trade : <strong>${echap(pire?.t || "?")}</strong> (${fmtSigne(pire?.v || 0)} Éclats)</p>
     </div>
-
     <div class="rangee-titre"><h2>🔥 Séries ${demoTag()}</h2></div>
     <div class="stats-grille">
       ${tuile("2 gains", "Série en cours", "vert")}
       ${tuile("4 gains", "Plus longue série de gains", "vert")}
       ${tuile("2 pertes", "Plus longue série de pertes", "rouge")}
-    </div>
+    </div>`;
 
-    <div class="rangee-titre"><h2>🧭 Comportement</h2></div>
+  const secComportement = `
     <div class="panneau"><div class="stats-grille">
       ${tuile(positions.length + nbG + nbP + rembs.length, "Paris pris au total")}
       ${tuile(positions.length, "Positions ouvertes")}
@@ -202,15 +206,27 @@ export function pageStats() {
     </div>
     <div class="hm-legende tres-muet">Moins <span class="hm-case hm-0"></span><span class="hm-case hm-1"></span><span class="hm-case hm-2"></span><span class="hm-case hm-3"></span><span class="hm-case hm-4"></span> Plus</div>
     </div>
-
     <div class="rangee-titre"><h2>🛡️ Discipline et risque</h2></div>
     <div class="panneau"><div class="stats-grille">
       ${tuile(fmt(positions.reduce((s, p) => s + p.montantExpose, 0)), "Exposition ouverte")}
       ${tuile(fmt(Math.round(Math.max(...positions.map((p) => p.montantExpose), 0) / Math.max(1, positions.reduce((s, p) => s + p.montantExpose, 0)) * 100)) + " %", "Concentration (plus gros pari)")}
       ${tuile(parTheme.length + " thèmes", "Diversification")}
       ${tuile("Respectée " + demoTag(), "Limite d'exposition par marché")}
-    </div></div>
+    </div></div>`;
 
+  const sections = {
+    ensemble: secEnsemble,
+    precision: secPrecision,
+    rentabilite: secRentabilite,
+    comportement: secComportement,
+    records: secRecords
+  };
+
+  return `
+    <h1>Statistiques · ${echap(TITRES_VUE[vue] || TITRES_VUE.ensemble)}</h1>
+    <p class="muet" style="margin-top:-6px">Ces statistiques ne concernent que votre activité sur Marchés.
+      Elles n'incluent jamais votre solde global d'Éclats, qui dépend aussi des autres applications de l'écosystème.</p>
+    ${sections[vue] || sections.ensemble}
     <p class="tres-muet" style="margin-top:20px">Les blocs marqués « démonstration » seront calculés sur votre historique réel dès que le trading sera branché (Phases C et D).</p>
   `;
 }

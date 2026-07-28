@@ -11,11 +11,23 @@ Liste normative : section 15 du hand-off. Migrations SQL dans `sql/` (Phase B+).
   Extension prévue Phase C : `idempotency_key text unique` nullable (D-003).
 - `auth.users` : compte unique de l'utilisateur, commun à toutes les apps.
 
-## Tables prévues (préfixées `mk_`)
+## Tables implémentées par la migration Phase B
 
-Référentiel externe : `mk_events`, `mk_markets`, `mk_outcomes`, `mk_tags`, `mk_market_tags`,
+`sql/001_catalogue_reel.sql` crée de manière additive :
+
+- `mk_events` : regroupements externes normalisés ;
+- `mk_markets` : marchés affichables par l'application ;
+- `mk_outcomes` : issues, probabilités et identifiants CLOB ;
+- `mk_price_snapshots` : historique échantillonné par quart d'heure ;
+- `mk_sync_runs` : audit de chaque synchronisation.
+
+La migration est préparée mais n'a pas encore été appliquée au projet distant.
+
+## Tables prévues ultérieurement (préfixées `mk_`)
+
+Référentiel externe restant : `mk_tags`, `mk_market_tags`,
 `mk_topics` (taxonomie canonique française), `mk_topic_mappings`, `mk_market_topics`,
-`mk_market_regions`, `mk_price_snapshots`, `mk_sync_runs`, `mk_realtime_events` (rétention
+`mk_market_regions`, `mk_realtime_events` (rétention
 courte), `mk_resolution_records`.
 
 Utilisateur : `mk_preferences`, `mk_favorites` (événements et marchés), `mk_topic_follows`,

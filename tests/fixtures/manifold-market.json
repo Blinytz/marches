@@ -1,0 +1,19 @@
+{
+  "id": "LqpPQ9dcQE",
+  "creatorUsername": "sample_creator",
+  "creatorName": "Sample Creator",
+  "createdTime": 1780000000000,
+  "closeTime": 1800000000000,
+  "question": "Will France reach the sample target?",
+  "slug": "will-france-reach-the-sample-target",
+  "url": "https://manifold.markets/sample_creator/will-france-reach-the-sample-target",
+  "probability": 0.63,
+  "probChangeDay": 0.04,
+  "totalLiquidity": 1400,
+  "volume": 9200,
+  "volume24Hours": 310,
+  "uniqueBettorCount": 74,
+  "outcomeType": "BINARY",
+  "isResolved": false,
+  "textDescription": "A reduced public API response used to test normalization."
+}

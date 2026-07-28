@@ -33,14 +33,14 @@ Statuts : [x] fait · [~] en cours · [ ] à faire.
 ## Phase B · Lecture réelle
 
 - [ ] Spike de connectivité depuis GitHub Actions et Edge Functions
-- [ ] Schéma Supabase référentiel externe (DATABASE.md) + migrations
-- [ ] Adaptateur Polymarket (Gamma + CLOB + Data) et normalisation
-- [ ] Adaptateur Manifold (REST) et normalisation
-- [ ] Sync GitHub Actions : import 5 min, pagination initiale, payloads bruts JSONB
+- [~] Schéma Supabase catalogue/issues/snapshots/sync prêt ; migration distante non appliquée
+- [~] Adaptateur Polymarket : catalogue Gamma, carnet/midpoint/historique CLOB et normalisation branchés ; Data API à faire
+- [~] Adaptateur Manifold : catalogue, détail REST et normalisation branchés ; historique durable à enrichir
+- [~] Sync GitHub Actions 5 min, upserts et payloads bruts prête ; secrets et activation à faire
 - [ ] Taxonomie française canonique + table de correspondance des tags
-- [ ] Recherche, filtres, tris, favoris, fil « Pour moi » déterministe
-- [ ] WebSockets navigateur + indicateurs de fraîcheur + snapshots de prix
-- [ ] Graphiques réels
+- [~] Recherche, filtres, tris, favoris et fil « Pour moi » sur catalogue réel ; taxonomie à affiner
+- [~] WebSockets navigateur branchés sur la fiche ouverte ; snapshots persistants et supervision à faire
+- [~] Graphiques réels Polymarket sur la fiche ; historique Manifold et autres issues à faire
 
 **Gate B :** tout fonctionne en lecture seule, doublons visibles, sources distinguées.
 

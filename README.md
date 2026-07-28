@@ -16,12 +16,22 @@ sources.
 - Référence produit : `docs/HANDOFF_V1_5.md` (hand-off complet)
 - Avancement : `docs/PLAN.md` · Décisions : `docs/DECISIONS.md`
 - Connectivité Polymarket : `docs/POLYMARKET_CONNECTIVITY_REPORT.md` (Phase 0 : SUPPORTED)
+- Synchronisation Supabase : `docs/SUPABASE_SYNC.md` (préparée, non activée)
 
 ## État actuel
 
-**Phase A : prototype navigable sur fixtures.** Aucune connexion API persistante, aucune écriture
-financière, solde de démonstration en mémoire. Gate A : validation visuelle par l'utilisateur
-avant les phases B à E.
+**Phase B partielle : catalogue réel dans la PWA.** Au chargement, l'application lit directement
+les catalogues publics Polymarket (Gamma) et Manifold (REST), les normalise dans un modèle commun
+et conserve le dernier catalogue réel dans le cache local. Si une source tombe, l'autre reste
+disponible. Les fixtures ne sont affichées comme catalogue qu'en dernier recours explicite.
+
+Le solde, les positions, les achats et les résultats restent simulés en mémoire : aucune écriture
+financière et aucun ordre réel n'est envoyé aux plateformes sources. La persistance Supabase,
+les historiques durables et la réconciliation restent à réaliser avant le branchement aux Éclats.
+
+Les fiches Polymarket chargent à la demande le carnet CLOB, le midpoint et l'historique de prix
+du camp affiché. Les fiches Manifold relisent le détail complet du marché. Tant qu'une fiche
+ouverte est affichée, son flux WebSocket public actualise les probabilités en lecture seule.
 
 ## Voir le prototype
 
@@ -47,7 +57,11 @@ Servir `pwa/` en statique, par exemple :
 python -m http.server 8123 --directory pwa
 ```
 
-puis ouvrir `http://localhost:8123`. Aucune dépendance, aucun build.
+puis ouvrir `http://localhost:8123`. Aucune dépendance, aucun build. Sans Python :
+
+```powershell
+node scripts/serve_static.mjs 8123
+```
 
 ## Contradictions relevées dans le hand-off (section 28.4)
 
