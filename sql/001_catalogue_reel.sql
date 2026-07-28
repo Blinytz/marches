@@ -153,7 +153,7 @@ grant all on
   public.mk_price_snapshots, public.mk_sync_runs
 to service_role;
 
-grant usage, select on sequences
+grant usage, select on sequence
   public.mk_events_id_seq,
   public.mk_markets_id_seq,
   public.mk_outcomes_id_seq,
