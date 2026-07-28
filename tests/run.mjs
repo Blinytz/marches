@@ -37,6 +37,9 @@ test("la migration du catalogue ne touche jamais au ledger", !/eclats_ledger/i.t
 test("les écritures catalogue restent réservées au service", migrationCatalogue.includes("to service_role") &&
   migrationCatalogue.includes("revoke insert, update, delete, truncate") &&
   !/grant\s+(?:all|insert|update|delete)[^;]*to\s+(?:anon|authenticated)/i.test(migrationCatalogue));
+test("le grant énumère les séquences avec la syntaxe PostgreSQL singulière",
+  /grant\s+usage,\s*select\s+on\s+sequence\s+public\.mk_events_id_seq/i.test(migrationCatalogue) &&
+  !/\bon\s+sequences\s+public\./i.test(migrationCatalogue));
 test("le workflow ne contient aucun secret en clair", workflowSync.includes("secrets.SUPABASE_SERVICE_KEY") &&
   !/sb_secret_|service_role\\s*[:=]\\s*['\"]/i.test(workflowSync));
 
