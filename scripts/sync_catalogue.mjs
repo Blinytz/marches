@@ -126,11 +126,14 @@ export class SupabaseService {
   }
 
   async requete(path, { method = "GET", body, prefer } = {}) {
+    const authorization = this.key.startsWith("sb_")
+      ? {}
+      : { Authorization: `Bearer ${this.key}` };
     const reponse = await fetch(`${this.url}/rest/v1/${path}`, {
       method,
       headers: {
         apikey: this.key,
-        Authorization: `Bearer ${this.key}`,
+        ...authorization,
         "Content-Type": "application/json",
         ...(prefer ? { Prefer: prefer } : {})
       },
