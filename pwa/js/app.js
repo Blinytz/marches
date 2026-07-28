@@ -313,7 +313,7 @@ function ouvrirFeuille(html) {
   feuille.innerHTML = html;
   feuille.hidden = false;
   voile.hidden = false;
-  accrocherTicket(() => { feuille.innerHTML = htmlTicketCourant(); });
+  accrocherTicket(() => { feuille.innerHTML = htmlTicketCourant(); }, feuille);
 }
 voile.addEventListener("click", () => { feuille.hidden = true; voile.hidden = true; });
 

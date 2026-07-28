@@ -116,8 +116,8 @@ function htmlTicket(m) {
       </div>
       ${horsTolerance ? `<div class="ticket-avert">⚠ Le prix a bougé de ${fmt(ecartPts)} points depuis votre saisie,
         au-delà de la tolérance (2 pts ou 5 %). Vérifiez le nouveau prix avant de confirmer à nouveau.</div>` : ""}
-      <button class="btn btn-principal" data-ticket="executer">
-        ${horsTolerance ? "Confirmer au nouveau prix" : `${estVente ? "Vendre" : "Acheter"} ${echap(issue.label)} · ${fmtEclats(estVente ? valeur : t.montant)}`}
+      <button class="btn btn-principal" data-ticket="executer" ${t.enCours ? "disabled" : ""}>
+        ${t.enCours ? "Ordre en cours…" : horsTolerance ? "Confirmer au nouveau prix" : `${estVente ? "Vendre" : "Acheter"} ${echap(issue.label)} · ${fmtEclats(estVente ? valeur : t.montant)}`}
       </button>
       <button class="btn btn-discret" data-ticket="retour">Retour</button>
     </div>`;
@@ -346,9 +346,11 @@ export function pageFiche({ params, query }) {
 }
 
 // Interactions du ticket (délégation accrochée par app.js après chaque rendu de fiche)
-export function accrocherTicket(rerendre) {
-  const zone = document.getElementById("zone-ticket") || document.getElementById("feuille-basse");
+export function accrocherTicket(rerendre, zoneForcee = null) {
+  const zone = zoneForcee || document.getElementById("zone-ticket") || document.getElementById("feuille-basse");
   if (!zone) return;
+  if (zone.dataset.ticketEcoute === "1") return;
+  zone.dataset.ticketEcoute = "1";
   zone.addEventListener("input", (e) => {
     if (!ticket) return;
     const m = e.target.closest("[data-ticket=montant]");
@@ -380,6 +382,10 @@ export function accrocherTicket(rerendre) {
       rerendre();
     }
     if (type === "executer") {
+      if (ticket.enCours) return;
+      ticket.enCours = true;
+      ticket.erreur = null;
+      rerendre();
       try {
         const resultat = await executerOrdre({
           marche: m,
@@ -399,6 +405,8 @@ export function accrocherTicket(rerendre) {
       } catch (erreur) {
         ticket.erreur = erreur.message;
         ticket.etape = "saisie";
+      } finally {
+        ticket.enCours = false;
       }
       rerendre();
     }
