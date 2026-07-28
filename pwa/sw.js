@@ -1,5 +1,5 @@
 // Cache réseau d'abord, repli sur le dernier contenu réel disponible.
-const CACHE = "marches-reel-v2";
+const CACHE = "marches-reel-v3";
 
 self.addEventListener("install", (e) => self.skipWaiting());
 self.addEventListener("activate", (e) => e.waitUntil(

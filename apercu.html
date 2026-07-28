@@ -1035,6 +1035,61 @@ async function chargerManifold() {
     .slice(0, 150);
 }
 
+function marcheDepuisSupabase(ligne) {
+  const prefixe = ligne.source === "POLYMARKET" ? "pm" : "mf";
+  const sourceDate = Date.parse(ligne.source_updated_at || ligne.last_seen_at || "");
+  return {
+    id: `${prefixe}-${ligne.external_id}`,
+    source: ligne.source,
+    externalId: ligne.external_id,
+    sourceUrl: ligne.source_url,
+    titleOriginal: ligne.title,
+    descriptionOriginal: ligne.description || "",
+    imageUrl: ligne.image_url,
+    marketType: ligne.market_type,
+    status: ligne.status,
+    tradable: Boolean(ligne.tradable),
+    nonTradableReason: ligne.non_tradable_reason,
+    theme: ligne.category || "Autres",
+    regions: ligne.regions || ["Monde"],
+    closeAt: ligne.close_at,
+    expectedResolutionAt: ligne.expected_resolution_at,
+    resolutionTimeConfidence: "EXPECTED",
+    resolutionSource: ligne.resolution_source,
+    volume: Number(ligne.volume) || 0,
+    volume24h: Number(ligne.volume_24h) || 0,
+    liquidity: Number(ligne.liquidity) || 0,
+    bettorCount: ligne.bettor_count == null ? null : Number(ligne.bettor_count),
+    spread: ligne.spread == null ? 0.02 : Number(ligne.spread),
+    fraicheurS: Number.isFinite(sourceDate) ? Math.max(0, Math.round((Date.now() - sourceDate) / 1000)) : 0,
+    detailEtat: "initial",
+    issues: (ligne.mk_outcomes || [])
+      .sort((a, b) => a.position - b.position)
+      .map((issue) => ({
+        ...(issue.raw_payload || {}),
+        id: issue.external_id,
+        label: issue.label,
+        prob: issue.probability == null ? null : Number(issue.probability),
+        prev24h: issue.previous_24h == null ? null : Number(issue.previous_24h),
+        tokenId: issue.clob_token_id || issue.raw_payload?.tokenId || null,
+        marketId: issue.source_market_id || issue.raw_payload?.marketId || null,
+        conditionId: issue.condition_id || issue.raw_payload?.conditionId || null,
+        history: []
+      }))
+  };
+}
+
+async function chargerCatalogueSupabase() {
+  const lignes = await rest("mk_markets", {
+    select: "*,mk_outcomes(*)",
+    status: "eq.OPEN",
+    unavailable_at: "is.null",
+    order: "volume_24h.desc",
+    limit: "300"
+  });
+  return (lignes || []).map(marcheDepuisSupabase).filter((m) => m.issues.length);
+}
+
 function lireCache() {
   try {
     const cache = JSON.parse(localStorage.getItem(CLE_CACHE));
@@ -1055,6 +1110,25 @@ function sauverCache(marches) {
 
 async function chargerCatalogueReel() {
   const cache = lireCache();
+  try {
+    const marchesSupabase = await chargerCatalogueSupabase();
+    if (marchesSupabase.length) {
+      sauverCache(marchesSupabase);
+      const polyCount = marchesSupabase.filter((m) => m.source === "POLYMARKET").length;
+      const manifoldCount = marchesSupabase.length - polyCount;
+      return {
+        marches: marchesSupabase,
+        origine: "supabase",
+        cachePerime: false,
+        sources: {
+          polymarket: { ok: polyCount > 0, count: polyCount, erreur: polyCount ? null : "aucun marché synchronisé" },
+          manifold: { ok: manifoldCount > 0, count: manifoldCount, erreur: manifoldCount ? null : "aucun marché synchronisé" }
+        }
+      };
+    }
+  } catch {
+    // Repli temporaire vers les API publiques ou le dernier cache réel.
+  }
   const resultats = await Promise.allSettled([chargerPolymarket(), chargerManifold()]);
   const [poly, manifold] = resultats;
   const marches = [
