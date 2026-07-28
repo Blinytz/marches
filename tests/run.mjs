@@ -15,6 +15,7 @@ const index = read("pwa/index.html");
 const portfolio = read("pwa/js/pages/portefeuille.js");
 const stats = read("pwa/js/pages/stats.js");
 const migrationCatalogue = read("sql/001_catalogue_reel.sql");
+const migrationPortefeuille = read("sql/002_portefeuille_eclats_reel.sql");
 const workflowSync = read(".github/workflows/sync-catalogue.yml");
 const pagesDir = new URL("pwa/js/pages/", root);
 const pageText = readdirSync(pagesDir)
@@ -30,7 +31,13 @@ test("aucun libellé utilisateur P&L ne subsiste", !/P(?:&amp;|&)L/.test(pageTex
 test("l'historique relie chaque événement à son marché", portfolio.includes('href="#/marche/${c.pos.marcheId}"'));
 test("le registre affiche le contexte de chaque mouvement", portfolio.includes("l.application") && portfolio.includes("l.marcheId"));
 test("les statistiques proposent des sous-menus", app.includes('href: "#/stats?vue=precision"') && app.includes('href: "#/stats?vue=records"') && app.includes('href: "#/stats?vue=rentabilite"') && app.includes('href: "#/stats?vue=comportement"'));
-test("la page Statistiques rend une sous-section selon la vue", stats.includes("route.query") && stats.includes("sections[vue]"));
+test("les statistiques utilisent uniquement le registre réel", stats.includes("etat.ledger") &&
+  stats.includes("registre commun") && !stats.includes("démonstration"));
+test("aucun contrôle ou solde de démonstration n'est chargé", !index.includes("barre-demo") &&
+  !read("pwa/js/etat.js").includes("SOLDE_DEMO"));
+test("les transactions Marchés passent par des RPC atomiques", migrationPortefeuille.includes("function public.mk_buy") &&
+  migrationPortefeuille.includes("function public.mk_sell") &&
+  migrationPortefeuille.includes("pg_advisory_xact_lock"));
 test("la migration du catalogue ne touche jamais au ledger", !/eclats_ledger/i.test(
   migrationCatalogue.replace(/--.*$/gm, "")
 ));
@@ -45,9 +52,9 @@ test("le workflow ne contient aucun secret en clair", workflowSync.includes("sec
 
 const jsFiles = [
   "pwa/js/app.js", "pwa/js/etat.js", "pwa/js/router.js", "pwa/js/ui.js",
-  "pwa/js/api/normalize.js", "pwa/js/api/market-data.js", "pwa/js/api/market-detail.js",
+  "pwa/js/api/normalize.js", "pwa/js/api/market-data.js", "pwa/js/api/market-detail.js", "pwa/js/api/supabase.js",
   ...readdirSync(pagesDir).filter((name) => name.endsWith(".js")).map((name) => `pwa/js/pages/${name}`),
-  "pwa/js/integration/eclats-adapter.js",
+  "pwa/js/integration/eclats-adapter.js", "pwa/js/integration/eclats-wallet.js",
   "pwa/js/integration/export-snapshot.js"
   ,"scripts/sync_catalogue.mjs"
 ];

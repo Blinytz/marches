@@ -21,10 +21,12 @@ const lire = (...p) => readFileSync(join(pwa, ...p), "utf8");
 
 // Ordre des dépendances : chaque module ne dépend que des précédents
 const MODULES = [
-  "js/data/fixtures.js",
+  "js/config.js",
   "js/api/normalize.js",
   "js/api/market-data.js",
   "js/api/market-detail.js",
+  "js/api/supabase.js",
+  "js/integration/eclats-wallet.js",
   "js/etat.js",
   "js/ui.js",
   "js/router.js",

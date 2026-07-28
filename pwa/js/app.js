@@ -1,5 +1,6 @@
-// Bootstrap du prototype Marchés (Phase A).
-import { etat, surChangement, notifier, basculerFavori, notificationsNonVues, marquerNotifLue, marquerToutLu, marquerToutesVues, recupererClaim, reglerDemo, basculerTheme, totalARecuperer, marche, chargerDonneesReelles, chargerDetailMarche } from "./etat.js";
+// Bootstrap de Marchés.
+import { etat, surChangement, notifier, basculerFavori, notificationsNonVues, marquerNotifLue, marquerToutLu, marquerToutesVues, recupererClaim, basculerTheme, totalARecuperer, marche, chargerDonneesReelles, chargerDetailMarche, chargerCompteReel } from "./etat.js";
+import { connexion, deconnexion } from "./api/supabase.js";
 import { suivreTempsReel } from "./api/market-detail.js";
 import { enregistrer, demarrerRouteur, routeCourante } from "./router.js";
 import { fmt, fmtEclats, compteReboursCourt } from "./ui.js";
@@ -83,13 +84,18 @@ const rendre = demarrerRouteur(contenu, (r) => {
 // ---------- En-tête, badges, bandeaux ----------
 
 function majEntete() {
-  document.getElementById("solde-valeur").textContent = `◇ ${fmt(etat.solde)}`;
+  document.getElementById("solde-valeur").textContent = etat.chargementCompte
+    ? "◇ …"
+    : etat.compteConnecte && etat.solde != null ? `◇ ${fmt(etat.solde)}` : "◇ Connexion";
+  const boutonSession = document.getElementById("bouton-session");
+  boutonSession.textContent = etat.compteConnecte ? "Déconnexion" : "Connexion";
+  boutonSession.dataset.action = etat.compteConnecte ? "deconnexion" : "ouvrir-connexion";
   const claims = totalARecuperer();
   const elClaims = document.getElementById("solde-claims");
   elClaims.hidden = claims <= 0;
   if (claims > 0) elClaims.textContent = `+ ${fmt(claims)} à récupérer`;
 
-  const nonVues = notificationsNonVues().length;
+  const nonVues = notificationsNonVues();
   const badgeN = document.getElementById("badge-notifs");
   badgeN.hidden = nonVues === 0;
   badgeN.textContent = nonVues;
@@ -114,15 +120,16 @@ function majEntete() {
     tr.innerHTML = `◷ <span>Cache hors ligne</span>`;
   } else {
     tr.classList.add("off");
-    tr.innerHTML = `⚠ <span>Mode démonstration</span>`;
+    tr.innerHTML = `⚠ <span>Données indisponibles</span>`;
   }
 
   const bandeaux = [];
   if (etat.modeDonnees === "cache") {
     bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Les API sont injoignables. Le dernier catalogue réel enregistré est affiché.</div>`);
-  } else if (etat.modeDonnees === "demo") {
-    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Les API et le cache réel sont indisponibles. Les marchés de démonstration sont affichés explicitement.</div>`);
+  } else if (etat.modeDonnees === "aucune") {
+    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Aucun catalogue réel n’est disponible pour le moment.</div>`);
   }
+  if (etat.erreurCompte) bandeaux.push(`<div class="bandeau bandeau-panne">Portefeuille Éclats indisponible : ${etat.erreurCompte}</div>`);
   if (etat.sources.polymarket.etat !== "ok") bandeaux.push(`<div class="bandeau bandeau-panne">📡 ${etat.sources.polymarket.libelle} · les marchés Polymarket déjà connus restent consultables en lecture seule.</div>`);
   if (etat.sources.manifold.etat !== "ok") bandeaux.push(`<div class="bandeau bandeau-panne">📡 ${etat.sources.manifold.libelle} · les marchés Manifold déjà connus restent consultables en lecture seule.</div>`);
   document.getElementById("bandeaux").innerHTML = bandeaux.join("");
@@ -263,8 +270,15 @@ document.body.addEventListener("click", async (e) => {
     act.textContent = "✓ Notification de test envoyée au centre interne";
   }
   if (a === "exporter-donnees") {
-    telechargerExportEclatsMarches(etat);
+    telechargerExportEclatsMarches(etat, { userId: etat.compteUtilisateur?.id || "non-connecte" });
     act.textContent = "✓ Export téléchargé";
+  }
+  if (a === "ouvrir-connexion") document.getElementById("dialogue-connexion").showModal();
+  if (a === "fermer-connexion") document.getElementById("dialogue-connexion").close();
+  if (a === "deconnexion") {
+    deconnexion();
+    await chargerCompteReel();
+    rendre();
   }
 });
 
@@ -303,17 +317,21 @@ function ouvrirFeuille(html) {
 }
 voile.addEventListener("click", () => { feuille.hidden = true; voile.hidden = true; });
 
-// ---------- Barre démo ----------
-
-const barreDemo = document.getElementById("barre-demo");
-document.getElementById("demo-toggle").addEventListener("click", () => barreDemo.classList.toggle("ouverte"));
-barreDemo.addEventListener("change", (e) => {
-  const c = e.target.closest("[data-demo]");
-  if (c) { reglerDemo(c.dataset.demo, c.checked); rendre(); }
-});
-document.getElementById("demo-reset").addEventListener("click", () => {
-  barreDemo.querySelectorAll("[data-demo]").forEach((c) => { c.checked = false; reglerDemo(c.dataset.demo, false); });
-  rendre();
+document.getElementById("formulaire-connexion").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const erreur = document.getElementById("erreur-connexion");
+  erreur.hidden = true;
+  const donnees = new FormData(e.currentTarget);
+  try {
+    await connexion(donnees.get("email"), donnees.get("password"));
+    await chargerCompteReel();
+    document.getElementById("dialogue-connexion").close();
+    e.currentTarget.reset();
+    rendre();
+  } catch (cause) {
+    erreur.textContent = cause.message;
+    erreur.hidden = false;
+  }
 });
 
 // ---------- Comptes à rebours vivants ----------
@@ -333,3 +351,4 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
 majEntete();
 rendre();
 chargerDonneesReelles().then(() => rendre()).catch(() => rendre());
+chargerCompteReel().then(() => rendre()).catch(() => rendre());

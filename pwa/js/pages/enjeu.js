@@ -37,7 +37,7 @@ function cartePosition(pos, deplie) {
   const paiement = paiementPotentiel(pos);
   const histo = historiqueIssue(pos);
   const echeanceProche = m.expectedResolutionAt && new Date(m.expectedResolutionAt) - Date.now() < 24 * 3600e3 && m.status === "OPEN";
-  const retarde = m.donneesRetardees || etat.demo.ws_deconnecte;
+  const retarde = m.donneesRetardees;
 
   const message = m.status === "CLOSED"
     ? "Marché fermé : en attente de la décision de l'oracle source."
@@ -96,7 +96,7 @@ function cartePosition(pos, deplie) {
 }
 
 export function pageEnjeu({ query }) {
-  if (etat.demo.chargement) {
+  if (etat.chargementCompte) {
     return `<h1>Mes positions</h1><div class="enjeu-entete skeleton" style="height:90px"></div>
       ${Array(3).fill('<div class="carte skeleton" style="height:150px; margin-top:12px"></div>').join("")}`;
   }

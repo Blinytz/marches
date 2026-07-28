@@ -651,19 +651,6 @@ a.carte:hover, .carte-marche:hover { transform: translateY(-3px); box-shadow: va
 @keyframes flashVert { 30% { color: var(--yes-fonce); } }
 @keyframes flashRouge { 30% { color: var(--no-fonce); } }
 
-/* ===================== Barre démo ===================== */
-
-#barre-demo { position: fixed; bottom: 90px; right: 14px; z-index: 80; font-size: 0.8rem; }
-@media (min-width: 768px) { #barre-demo { bottom: 18px; } }
-#demo-toggle { background: var(--surface-1); border: none; border-radius: var(--r-pill); padding: 8px 15px; font-weight: 700; box-shadow: var(--ombre-2); color: var(--accent); }
-#demo-panneau {
-  display: none; position: absolute; bottom: 46px; right: 0;
-  background: var(--surface-1); border-radius: 16px; padding: 14px 16px; width: 258px; box-shadow: var(--ombre-3);
-}
-#barre-demo.ouverte #demo-panneau { display: flex; flex-direction: column; gap: 8px; }
-#demo-panneau label { display: flex; gap: 8px; align-items: center; color: var(--text-2); font-weight: 500; }
-.demo-titre { margin: 0 0 4px; font-weight: 800; color: var(--text-1); }
-
 /* ===================== Divers ===================== */
 
 /* ===================== Statistiques ===================== */

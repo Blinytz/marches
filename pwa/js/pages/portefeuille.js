@@ -1,6 +1,6 @@
 // Portefeuille (9.7) : vision patrimoniale globale + registre d'Éclats.
 import { etat, totalARecuperer, marche } from "../etat.js";
-import { echap, fmt, fmtEclats, fmtSigne, etatVide, valeurPosition, sparkline } from "../ui.js";
+import { echap, fmt, fmtSigne, etatVide, valeurPosition } from "../ui.js";
 
 const ONGLETS_PORTEFEUILLE = [
   { cle: "vue", lib: "Vue générale" },
@@ -10,19 +10,21 @@ const ONGLETS_PORTEFEUILLE = [
 ];
 
 export function pagePortefeuille({ query }) {
-  if (etat.demo.chargement) {
+  if (etat.chargementCompte) {
     return `<h1>Portefeuille</h1><div class="enjeu-entete skeleton" style="height:110px"></div>`;
+  }
+  if (!etat.compteConnecte) {
+    return `<h1>Portefeuille</h1>` + etatVide("🔐", "Portefeuille Éclats non connecté",
+      "Connectez-vous avec le même compte que dans les autres applications de l’écosystème.",
+      `<button class="btn btn-principal" data-action="ouvrir-connexion">Se connecter</button>`);
   }
   const onglet = query.o || "vue";
   const valPositions = etat.positions.reduce((s, p) => s + (valeurPosition(p) ?? p.montantExpose), 0);
   const aRecuperer = totalARecuperer();
-  const total = etat.solde + valPositions + aRecuperer;
+  const total = (etat.solde || 0) + valPositions + aRecuperer;
   const expose = etat.positions.reduce((s, p) => s + p.montantExpose, 0);
-  const plJour = 102; // démonstration
   const plTotal = etat.claims.filter(c => c.type === "GAIN").reduce((s, c) => s + c.montant - c.mise, 0)
     + etat.defaites.reduce((s, d) => s + d.perte, 0) + (valPositions - expose);
-
-  const courbe = Array.from({ length: 30 }, (_, i) => ({ t: Date.now() - (29 - i) * 24 * 3600e3, p: 0.8 + i * 0.006 + (i % 5) * 0.004 }));
 
   const contenus = {
     vue: `
@@ -79,9 +81,8 @@ export function pagePortefeuille({ query }) {
       <div class="bloc"><span class="lib muet">Disponibles</span><div class="val num" style="font-size:1.15rem; font-weight:700">${fmt(etat.solde)}</div></div>
       <div class="bloc"><span class="lib muet">Positions</span><div class="val num" style="font-size:1.15rem; font-weight:700">${fmt(valPositions)}</div></div>
       <div class="bloc"><span class="lib muet">À récupérer</span><div class="val num orange" style="font-size:1.15rem; font-weight:700">${fmt(aRecuperer)}</div></div>
-      <div class="bloc"><span class="lib muet">Résultat aujourd'hui</span><div class="val num vert">${fmtSigne(plJour)}</div></div>
       <div class="bloc"><span class="lib muet">Résultat total</span><div class="val num ${plTotal >= 0 ? "vert" : "rouge"}">${fmtSigne(plTotal)}</div></div>
-      <div class="bloc" style="min-width:180px">${sparkline(courbe, { w: 180, h: 44 })}<span class="lib tres-muet">Valeur sur 30 jours</span></div>
+      <div class="bloc"><span class="lib muet">Registre</span><div class="val num">${etat.ledger.length}</div><span class="lib tres-muet">mouvements chargés</span></div>
     </div>
 
     <div class="chips" style="margin-top:14px">

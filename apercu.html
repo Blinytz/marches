@@ -653,19 +653,6 @@ a.carte:hover, .carte-marche:hover { transform: translateY(-3px); box-shadow: va
 @keyframes flashVert { 30% { color: var(--yes-fonce); } }
 @keyframes flashRouge { 30% { color: var(--no-fonce); } }
 
-/* ===================== Barre démo ===================== */
-
-#barre-demo { position: fixed; bottom: 90px; right: 14px; z-index: 80; font-size: 0.8rem; }
-@media (min-width: 768px) { #barre-demo { bottom: 18px; } }
-#demo-toggle { background: var(--surface-1); border: none; border-radius: var(--r-pill); padding: 8px 15px; font-weight: 700; box-shadow: var(--ombre-2); color: var(--accent); }
-#demo-panneau {
-  display: none; position: absolute; bottom: 46px; right: 0;
-  background: var(--surface-1); border-radius: 16px; padding: 14px 16px; width: 258px; box-shadow: var(--ombre-3);
-}
-#barre-demo.ouverte #demo-panneau { display: flex; flex-direction: column; gap: 8px; }
-#demo-panneau label { display: flex; gap: 8px; align-items: center; color: var(--text-2); font-weight: 500; }
-.demo-titre { margin: 0 0 4px; font-weight: 800; color: var(--text-1); }
-
 /* ===================== Divers ===================== */
 
 /* ===================== Statistiques ===================== */
@@ -726,23 +713,7 @@ a.carte:hover, .carte-marche:hover { transform: translateY(-3px); box-shadow: va
 html { background: var(--bg); }
 </style>
 
-<!-- Barre démo Phase A : bascule des états d'interface (section 11) -->
-  <aside id="barre-demo" class="repliee" aria-label="Contrôles de démonstration">
-    <button id="demo-toggle" title="Contrôles de démonstration du prototype">🧪 Démo</button>
-    <div id="demo-panneau">
-      <p class="demo-titre">Tests d'interface · états simulés</p>
-      <label><input type="checkbox" data-demo="panne_polymarket"> Panne Polymarket</label>
-      <label><input type="checkbox" data-demo="panne_manifold"> Panne Manifold</label>
-      <label><input type="checkbox" data-demo="ws_deconnecte"> WebSocket déconnecté</label>
-      <label><input type="checkbox" data-demo="chargement"> Skeletons de chargement</label>
-      <label><input type="checkbox" data-demo="solde_insuffisant"> Solde insuffisant (ticket)</label>
-      <label><input type="checkbox" data-demo="prix_modifie"> Prix modifié avant confirmation</label>
-      <label><input type="checkbox" data-demo="erreur_inconnue"> Erreur inconnue (fiche)</label>
-      <button id="demo-reset" class="btn btn-discret">Réinitialiser la démo</button>
-    </div>
-  </aside>
-
-  <header id="entete">
+<header id="entete">
     <a class="logo" href="#/accueil">✦ <span class="logo-texte">Marchés</span></a>
     <div id="recherche-globale">
       <input id="champ-recherche" type="search" placeholder="Rechercher un marché…  ( / )"
@@ -756,6 +727,7 @@ html { background: var(--bg); }
         <span id="solde-valeur" class="solde">◇ …</span>
         <span id="solde-claims" class="solde-claims" hidden></span>
       </a>
+      <button id="bouton-session" class="btn btn-discret" data-action="ouvrir-connexion">Connexion</button>
     </div>
   </header>
 
@@ -786,521 +758,22 @@ html { background: var(--bg); }
 
   <div id="voile" hidden></div>
   <div id="feuille-basse" hidden></div>
+  <dialog id="dialogue-connexion">
+    <form id="formulaire-connexion">
+      <h2>Portefeuille Éclats</h2>
+      <p class="muet">Utilisez le même compte que dans les autres applications de l’écosystème.</p>
+      <label>Adresse e-mail<input class="champ" name="email" type="email" autocomplete="email" required></label>
+      <label>Mot de passe<input class="champ" name="password" type="password" autocomplete="current-password" required></label>
+      <p id="erreur-connexion" class="ticket-erreur" hidden></p>
+      <div class="actions"><button type="button" class="btn btn-discret" data-action="fermer-connexion">Annuler</button>
+        <button class="btn btn-principal" type="submit">Se connecter</button></div>
+    </form>
+  </dialog>
 
 <script type="module">
 
-/* ================= js/data/fixtures.js ================= */
-// Fixtures Phase A · Marchés
-// Données 100 % fictives couvrant les scénarios exigés par la section 26 (Phase A) du hand-off.
-// Cartographie scénario -> fixture : voir tests/fixtures/README.md
-// Les dates sont calculées relativement au chargement pour que comptes à rebours et
-// fraîcheurs restent vivants pendant la démo.
-
-const H = 3600e3;
-const maintenant = Date.now();
-const dans = (heures) => new Date(maintenant + heures * H).toISOString();
-const ilYA = (heures) => new Date(maintenant - heures * H).toISOString();
-
-// Petite série de probabilités pseudo-aléatoire mais déterministe (seed simple)
-function serie(depart, arrivee, n, seed, volMax = 0.035) {
-  let x = seed;
-  const pts = [];
-  let p = depart;
-  for (let i = 0; i < n; i++) {
-    x = (x * 9301 + 49297) % 233280;
-    const bruit = ((x / 233280) - 0.5) * volMax;
-    const t = i / (n - 1);
-    p = Math.min(0.985, Math.max(0.015, depart + (arrivee - depart) * t + bruit));
-    pts.push({ t: maintenant - (n - 1 - i) * (H / 2), p: Math.round(p * 1000) / 1000 });
-  }
-  pts[n - 1].p = arrivee;
-  return pts;
-}
-
-const MARCHES = [
-  // 1+9. Polymarket binaire, doublon apparent avec mf-fed-juillet, position ouverte favorable
-  {
-    id: "pm-fed-juillet", source: "POLYMARKET", externalId: "0xFED0721",
-    sourceUrl: "https://polymarket.com/event/fed-decision-july",
-    titleOriginal: "Will the Fed cut interest rates at the July 2026 meeting?",
-    marketType: "BINARY", status: "OPEN", tradable: true,
-    theme: "Économie", regions: ["Monde"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWIyYTRhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNERBM0ZGIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfj6Y8L3RleHQ+PC9zdmc+",
-    closeAt: dans(129), expectedResolutionAt: dans(130), resolutionTimeConfidence: "EXACT",
-    volume: 2140000, volume24h: 312000, liquidity: 341000, bettorCount: 12400,
-    resolutionSource: "Federal Reserve press release (federalreserve.gov)",
-    descriptionOriginal: "This market resolves YES if the FOMC announces a decrease in the target federal funds rate at its July 2026 meeting.",
-    fraicheurS: 8, spread: 0.012,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.454, prev24h: 0.433, history: serie(0.31, 0.454, 96, 7) },
-      { id: "non", label: "NON", prob: 0.546, prev24h: 0.567, history: serie(0.69, 0.546, 96, 8) }
-    ],
-    carnet: {
-      bids: [[0.45, 5200], [0.44, 8100], [0.43, 12500]],
-      asks: [[0.46, 4100], [0.47, 9300], [0.48, 15000]]
-    }
-  },
-  // 9. Doublon Manifold de la même question : jamais fusionné
-  {
-    id: "mf-fed-juillet", source: "MANIFOLD", externalId: "mfFED26",
-    sourceUrl: "https://manifold.markets/example/fed-cut-july-2026",
-    titleOriginal: "Will the Fed cut rates in July 2026?",
-    marketType: "BINARY", status: "OPEN", tradable: true,
-    theme: "Économie", regions: ["Monde"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWIyYTRhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNERBM0ZGIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfj6Y8L3RleHQ+PC9zdmc+",
-    closeAt: dans(128), expectedResolutionAt: dans(132), resolutionTimeConfidence: "EXPECTED",
-    volume: 48200, volume24h: 3900, liquidity: 12000, bettorCount: 341,
-    createur: "econ_watcher", resolutionSource: "Résolu par le créateur selon l'annonce du FOMC",
-    descriptionOriginal: "Resolves YES if the FOMC lowers the federal funds target range at the July 2026 meeting.",
-    fraicheurS: 21, spread: 0.02, prixMiroir: true,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.47, prev24h: 0.44, history: serie(0.35, 0.47, 96, 11) },
-      { id: "non", label: "NON", prob: 0.53, prev24h: 0.56, history: serie(0.65, 0.53, 96, 12) }
-    ]
-  },
-  // 7. Marché court : moins de 24 h, très mis en avant
-  {
-    id: "pm-shutdown-31", source: "POLYMARKET", externalId: "0xSHUT31",
-    sourceUrl: "https://polymarket.com/event/us-government-shutdown",
-    titleOriginal: "US government shutdown before August 1?",
-    marketType: "BINARY", status: "OPEN", tradable: true,
-    theme: "Politique", regions: ["Monde"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMmExYjNhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjOEI3Q0ZGIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfj5vvuI88L3RleHQ+PC9zdmc+",
-    closeAt: dans(14), expectedResolutionAt: dans(15), resolutionTimeConfidence: "EXACT",
-    volume: 5300000, volume24h: 1900000, liquidity: 620000, bettorCount: 31000,
-    resolutionSource: "Official OMB / Congressional record",
-    descriptionOriginal: "Resolves YES if federal appropriations lapse causing a shutdown before Aug 1, 2026, 00:00 ET.",
-    fraicheurS: 3, spread: 0.008,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.12, prev24h: 0.104, history: serie(0.2, 0.12, 96, 21) },
-      { id: "non", label: "NON", prob: 0.88, prev24h: 0.896, history: serie(0.8, 0.88, 96, 22) }
-    ],
-    carnet: { bids: [[0.118, 22000], [0.11, 40000]], asks: [[0.122, 18000], [0.13, 52000]] }
-  },
-  // 7bis. Manifold court, France, moins de 6 h
-  {
-    id: "mf-greve-sncf", source: "MANIFOLD", externalId: "mfSNCF",
-    sourceUrl: "https://manifold.markets/example/sncf-strike-lifted",
-    titleOriginal: "Will the SNCF strike be suspended before Wednesday?",
-    marketType: "BINARY", status: "OPEN", tradable: true,
-    theme: "Société", regions: ["France"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWIzYTJmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMjBDOTk3IiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfmoY8L3RleHQ+PC9zdmc+",
-    closeAt: dans(5.2), expectedResolutionAt: dans(9), resolutionTimeConfidence: "EXPECTED",
-    volume: 8100, volume24h: 2600, liquidity: 2400, bettorCount: 84,
-    createur: "paris_pronos", resolutionSource: "Communiqué officiel des syndicats ou de la SNCF",
-    descriptionOriginal: "Resolves YES if the strike notice is officially suspended before Wednesday 6:00 CET.",
-    fraicheurS: 14, spread: 0.02, prixMiroir: true,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.64, prev24h: 0.51, history: serie(0.4, 0.64, 48, 31) },
-      { id: "non", label: "NON", prob: 0.36, prev24h: 0.49, history: serie(0.6, 0.36, 48, 32) }
-    ]
-  },
-  // 2. Événement Polymarket avec plusieurs sous-marchés
-  {
-    id: "pm-presidentielle-2027", source: "POLYMARKET", externalId: "0xPRES27",
-    sourceUrl: "https://polymarket.com/event/french-presidential-2027",
-    titleOriginal: "Who will win the 2027 French presidential election?",
-    marketType: "MULTIPLE", status: "OPEN", tradable: true,
-    theme: "Politique", regions: ["France"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWIyNDQwIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNERBM0ZGIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfh6vwn4e3PC90ZXh0Pjwvc3ZnPg==",
-    closeAt: dans(6200), expectedResolutionAt: dans(6300), resolutionTimeConfidence: "EXPECTED",
-    volume: 41000000, volume24h: 830000, liquidity: 3900000, bettorCount: 88000,
-    resolutionSource: "Official results proclaimed by the Conseil constitutionnel",
-    descriptionOriginal: "Each sub-market resolves YES for the candidate officially elected President in 2027.",
-    fraicheurS: 12, spread: 0.01,
-    issues: [
-      { id: "c1", label: "Candidate A", prob: 0.31, prev24h: 0.29, history: serie(0.22, 0.31, 96, 41) },
-      { id: "c2", label: "Candidate B", prob: 0.24, prev24h: 0.25, history: serie(0.3, 0.24, 96, 42) },
-      { id: "c3", label: "Candidate C", prob: 0.12, prev24h: 0.12, history: serie(0.1, 0.12, 96, 43) },
-      { id: "c4", label: "Candidate D", prob: 0.09, prev24h: 0.1, history: serie(0.12, 0.09, 96, 44) },
-      { id: "autres", label: "Another candidate", prob: 0.24, prev24h: 0.24, history: serie(0.26, 0.24, 96, 45) }
-    ],
-    carnet: { bids: [[0.305, 9000], [0.3, 15000]], asks: [[0.315, 7000], [0.32, 12000]] }
-  },
-  // 3. Manifold binaire, position défavorable dessus
-  {
-    id: "mf-psg-ligue1", source: "MANIFOLD", externalId: "mfPSG27",
-    sourceUrl: "https://manifold.markets/example/psg-ligue1-2027",
-    titleOriginal: "Will PSG win Ligue 1 in the 2026-2027 season?",
-    marketType: "BINARY", status: "OPEN", tradable: true,
-    theme: "Sport", regions: ["France"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMTQzMjFmIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMjBDOTk3IiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuKavTwvdGV4dD48L3N2Zz4=",
-    closeAt: dans(7300), expectedResolutionAt: dans(7350), resolutionTimeConfidence: "EXPECTED",
-    volume: 15600, volume24h: 900, liquidity: 5200, bettorCount: 208,
-    createur: "foot_stats", resolutionSource: "Classement final officiel de la LFP",
-    descriptionOriginal: "Resolves YES if PSG finishes first in Ligue 1 at the end of the 2026-2027 season.",
-    fraicheurS: 45, spread: 0.02, prixMiroir: true,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.82, prev24h: 0.79, history: serie(0.7, 0.82, 96, 51) },
-      { id: "non", label: "NON", prob: 0.18, prev24h: 0.21, history: serie(0.3, 0.18, 96, 52) }
-    ]
-  },
-  // 4. Manifold à choix multiples, somme = 100 %
-  {
-    id: "mf-studio-film-2026", source: "MANIFOLD", externalId: "mfFILM26",
-    sourceUrl: "https://manifold.markets/example/best-reviewed-film-2026",
-    titleOriginal: "Which studio releases the best reviewed film of 2026?",
-    marketType: "MULTIPLE_CHOICE", status: "OPEN", tradable: true, sommeEgale1: true,
-    theme: "Cinéma", regions: ["Monde"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjM2ExYjJhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjRkY2QjZCIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfjqw8L3RleHQ+PC9zdmc+",
-    closeAt: dans(3900), expectedResolutionAt: dans(3980), resolutionTimeConfidence: "EXPECTED",
-    volume: 22100, volume24h: 1450, liquidity: 8100, bettorCount: 412,
-    createur: "cine_fan", resolutionSource: "Metacritic top score, résolu par le créateur",
-    descriptionOriginal: "Resolves to the studio of the 2026 wide-release film with the highest Metacritic score on Jan 15, 2027.",
-    fraicheurS: 30, spread: 0.02, prixMiroir: true,
-    issues: [
-      { id: "ghibli", label: "Studio Ghibli", prob: 0.41, prev24h: 0.38, history: serie(0.3, 0.41, 96, 61) },
-      { id: "a24", label: "A24", prob: 0.22, prev24h: 0.24, history: serie(0.25, 0.22, 96, 62) },
-      { id: "pixar", label: "Pixar", prob: 0.15, prev24h: 0.15, history: serie(0.18, 0.15, 96, 63) },
-      { id: "wb", label: "Warner Bros", prob: 0.12, prev24h: 0.13, history: serie(0.15, 0.12, 96, 64) },
-      { id: "autre", label: "Another studio", prob: 0.1, prev24h: 0.1, history: serie(0.12, 0.1, 96, 65) }
-    ]
-  },
-  // 5. Manifold à réponses indépendantes (la somme ne fait pas 100 %)
-  {
-    id: "mf-ia-jalons-2026", source: "MANIFOLD", externalId: "mfIA26",
-    sourceUrl: "https://manifold.markets/example/ai-milestones-2026",
-    titleOriginal: "AI milestones before end of 2026 (each answer resolves independently)",
-    marketType: "MULTIPLE_CHOICE", status: "OPEN", tradable: true, sommeEgale1: false,
-    theme: "Intelligence artificielle", regions: ["Monde"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMjMxYjNhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjOEI3Q0ZGIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfpJY8L3RleHQ+PC9zdmc+",
-    closeAt: dans(3800), expectedResolutionAt: dans(3900), resolutionTimeConfidence: "EXPECTED",
-    volume: 31000, volume24h: 5200, liquidity: 9800, bettorCount: 720,
-    createur: "ml_curious", resolutionSource: "Annonces publiques vérifiables, résolu réponse par réponse",
-    descriptionOriginal: "Each answer resolves YES or NO independently. Probabilities do not sum to 100%.",
-    fraicheurS: 9, spread: 0.02, prixMiroir: true,
-    issues: [
-      { id: "j1", label: "A model scores above 95% on ARC-AGI-3", prob: 0.34, prev24h: 0.31, history: serie(0.2, 0.34, 96, 71) },
-      { id: "j2", label: "An AI system files a granted patent", prob: 0.18, prev24h: 0.18, history: serie(0.15, 0.18, 96, 72) },
-      { id: "j3", label: "A top-10 single is fully AI-generated", prob: 0.55, prev24h: 0.49, history: serie(0.4, 0.55, 96, 73) },
-      { id: "j4", label: "An AI lab announces a 1 GW training run", prob: 0.72, prev24h: 0.7, history: serie(0.6, 0.72, 96, 74) }
-    ]
-  },
-  // 6. Format Manifold atypique : consultable, non négociable
-  {
-    id: "mf-poll-vacances", source: "MANIFOLD", externalId: "mfPOLL1",
-    sourceUrl: "https://manifold.markets/example/best-vacation-poll",
-    titleOriginal: "POLL: What is the best summer vacation destination?",
-    marketType: "OTHER", sousType: "POLL", status: "OPEN", tradable: false,
-    nonTradableReason: "Format POLL : sondage sans résolution financière. Consultable, trading non pris en charge.",
-    theme: "Insolite", regions: ["Monde"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjM2EyZjFiIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjRjVCOTQyIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfj5bvuI88L3RleHQ+PC9zdmc+",
-    closeAt: dans(500), expectedResolutionAt: null, resolutionTimeConfidence: "UNKNOWN",
-    volume: 0, volume24h: 0, liquidity: 0, bettorCount: 156,
-    createur: "travel_polls", resolutionSource: "Sondage : aucune résolution",
-    descriptionOriginal: "Just a poll, votes only. No payout.",
-    fraicheurS: 120,
-    issues: [
-      { id: "p1", label: "Mediterranean coast", prob: null, votes: 61 },
-      { id: "p2", label: "Japanese Alps", prob: null, votes: 48 },
-      { id: "p3", label: "Norwegian fjords", prob: null, votes: 47 }
-    ]
-  },
-  // 8. Long terme
-  {
-    id: "pm-mars-2030", source: "POLYMARKET", externalId: "0xMARS30",
-    sourceUrl: "https://polymarket.com/event/humans-on-mars-2030",
-    titleOriginal: "Will humans land on Mars before 2031?",
-    marketType: "BINARY", status: "OPEN", tradable: true,
-    theme: "Espace", regions: ["Monde"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjM2ExZjFiIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjRkY4QjZCIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfqpA8L3RleHQ+PC9zdmc+",
-    closeAt: dans(38000), expectedResolutionAt: dans(38100), resolutionTimeConfidence: "EXPECTED",
-    volume: 8900000, volume24h: 41000, liquidity: 1200000, bettorCount: 45000,
-    resolutionSource: "Credible confirmation of a crewed landing by a space agency or company",
-    descriptionOriginal: "Resolves YES if a crewed spacecraft lands on the Martian surface before Jan 1, 2031.",
-    fraicheurS: 55, spread: 0.01,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.07, prev24h: 0.07, history: serie(0.09, 0.07, 96, 81) },
-      { id: "non", label: "NON", prob: 0.93, prev24h: 0.93, history: serie(0.91, 0.93, 96, 82) }
-    ],
-    carnet: { bids: [[0.068, 30000], [0.06, 80000]], asks: [[0.072, 25000], [0.08, 60000]] }
-  },
-  // 10+11. Sans image + titre et règles très longs en anglais
-  {
-    id: "mf-titre-long", source: "MANIFOLD", externalId: "mfLONG1",
-    sourceUrl: "https://manifold.markets/example/very-long-title",
-    titleOriginal: "Conditional on at least three G20 central banks announcing a jointly coordinated digital currency interoperability framework before the end of Q3 2026, will the euro area consumer price index (HICP, all items, seasonally adjusted) print below 2.0% year over year at any monthly release before December 2026?",
-    marketType: "BINARY", status: "OPEN", tradable: true,
-    theme: "Finance", regions: ["Europe"],
-    imageUrl: null,
-    closeAt: dans(2600), expectedResolutionAt: dans(2700), resolutionTimeConfidence: "EXPECTED",
-    volume: 3400, volume24h: 120, liquidity: 900, bettorCount: 37,
-    createur: "macro_details", resolutionSource: "Eurostat official releases; long conditional rules below",
-    descriptionOriginal: "Resolution details: this market resolves N/A if fewer than three G20 central banks announce the framework described above before Sep 30, 2026, 23:59 UTC. Otherwise it resolves YES if any Eurostat HICP flash or final monthly release published before Dec 31, 2026 shows a year-over-year figure strictly below 2.0% for the euro area aggregate, all items index, using the seasonally adjusted series as primary reference. In case Eurostat revises a previously published figure, only the first publication counts. If Eurostat changes its methodology in a way that makes the series discontinuous, the market resolves N/A. The creator will wait up to 72 hours after each release to confirm resolution, and reserves the right to consult the comment section before resolving edge cases.",
-    fraicheurS: 200, spread: 0.02, prixMiroir: true,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.29, prev24h: 0.3, history: serie(0.33, 0.29, 96, 91) },
-      { id: "non", label: "NON", prob: 0.71, prev24h: 0.7, history: serie(0.67, 0.71, 96, 92) }
-    ]
-  },
-  // 12a. Sans prix exploitable : consultable seulement
-  {
-    id: "mf-prix-absent", source: "MANIFOLD", externalId: "mfNOPRICE",
-    sourceUrl: "https://manifold.markets/example/broken-price",
-    titleOriginal: "Will the new metro line open on schedule?",
-    marketType: "BINARY", status: "OPEN", tradable: false,
-    nonTradableReason: "Prix absent ou incohérent renvoyé par la source : trading suspendu, affichage conservé.",
-    theme: "Société", regions: ["France"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWIyYTNhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNERBM0ZGIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfmoc8L3RleHQ+PC9zdmc+",
-    closeAt: dans(800), expectedResolutionAt: dans(850), resolutionTimeConfidence: "EXPECTED",
-    volume: 1200, volume24h: 0, liquidity: 300, bettorCount: 19,
-    createur: "urba_idf", resolutionSource: "Communiqué officiel IDFM",
-    descriptionOriginal: "Resolves YES if the line opens to the public before the announced date.",
-    fraicheurS: 5400,
-    issues: [
-      { id: "oui", label: "OUI", prob: null, prev24h: null, history: [] },
-      { id: "non", label: "NON", prob: null, prev24h: null, history: [] }
-    ]
-  },
-  // 12b. Carnet vide / profondeur insuffisante
-  {
-    id: "pm-carnet-vide", source: "POLYMARKET", externalId: "0xEMPTY1",
-    sourceUrl: "https://polymarket.com/event/obscure-local-event",
-    titleOriginal: "Will the obscure local referendum pass?",
-    marketType: "BINARY", status: "OPEN", tradable: true, profondeurFaible: true,
-    theme: "Politique", regions: ["Monde"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMmEyYTFiIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjRjVCOTQyIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfl7PvuI88L3RleHQ+PC9zdmc+",
-    closeAt: dans(300), expectedResolutionAt: dans(310), resolutionTimeConfidence: "EXPECTED",
-    volume: 4100, volume24h: 60, liquidity: 180, bettorCount: 12,
-    resolutionSource: "Official county results page",
-    descriptionOriginal: "Resolves YES if the referendum passes.",
-    fraicheurS: 95, spread: 0.14,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.51, prev24h: 0.5, history: serie(0.5, 0.51, 48, 101) },
-      { id: "non", label: "NON", prob: 0.49, prev24h: 0.5, history: serie(0.5, 0.49, 48, 102) }
-    ],
-    carnet: { bids: [[0.44, 60]], asks: [[0.58, 45]] }
-  },
-  // 12c. Données retardées (position ouverte dessus, voir POSITIONS)
-  {
-    id: "pm-petrole-90", source: "POLYMARKET", externalId: "0xOIL90",
-    sourceUrl: "https://polymarket.com/event/oil-above-90",
-    titleOriginal: "Will Brent crude close above $90 this month?",
-    marketType: "BINARY", status: "OPEN", tradable: true, donneesRetardees: true,
-    theme: "Économie", regions: ["Monde"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMjYyMDFiIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjRjVCOTQyIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfm6LvuI88L3RleHQ+PC9zdmc+",
-    closeAt: dans(230), expectedResolutionAt: dans(235), resolutionTimeConfidence: "EXACT",
-    volume: 890000, volume24h: 12000, liquidity: 95000, bettorCount: 5600,
-    resolutionSource: "ICE Brent front-month settlement price",
-    descriptionOriginal: "Resolves YES if the front-month Brent future settles above $90.00 on any trading day this month.",
-    fraicheurS: 480, spread: 0.02,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.23, prev24h: 0.27, history: serie(0.35, 0.23, 96, 111) },
-      { id: "non", label: "NON", prob: 0.77, prev24h: 0.73, history: serie(0.65, 0.77, 96, 112) }
-    ],
-    carnet: { bids: [[0.225, 4000], [0.21, 9000]], asks: [[0.235, 3800], [0.25, 7000]] }
-  },
-  // 15. Fermé, résolution en attente (position dessus)
-  {
-    id: "mf-canicule-juillet", source: "MANIFOLD", externalId: "mfHEAT7",
-    sourceUrl: "https://manifold.markets/example/heatwave-july",
-    titleOriginal: "Will France record a temperature above 42C in July 2026?",
-    marketType: "BINARY", status: "CLOSED", tradable: false,
-    nonTradableReason: "Marché fermé : résolution en attente de l'oracle source.",
-    theme: "Climat et environnement", regions: ["France"],
-    imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjM2EyYTEwIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjRjVCOTQyIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPuKYgO+4jzwvdGV4dD48L3N2Zz4=",
-    closeAt: ilYA(20), expectedResolutionAt: dans(28), resolutionTimeConfidence: "EXPECTED",
-    volume: 9400, volume24h: 0, liquidity: 2100, bettorCount: 130,
-    createur: "meteo_fr", resolutionSource: "Relevés officiels Météo-France",
-    descriptionOriginal: "Resolves YES if any official Météo-France station records strictly more than 42.0C during July 2026.",
-    fraicheurS: 72000, dernierPrixConserve: true, spread: 0.02, prixMiroir: true,
-    issues: [
-      { id: "oui", label: "OUI", prob: 0.58, prev24h: 0.58, history: serie(0.3, 0.58, 96, 121) },
-      { id: "non", label: "NON", prob: 0.42, prev24h: 0.42, history: serie(0.7, 0.42, 96, 122) }
-    ]
-  },
-  // Marchés résolus alimentant les Résultats (16 à 20)
-  {
-    id: "pm-shutdown-evite", source: "POLYMARKET", externalId: "0xSHUTQ2",
-    sourceUrl: "https://polymarket.com/event/q2-shutdown-avoided",
-    titleOriginal: "Government shutdown avoided in Q2 2026?",
-    marketType: "BINARY", status: "RESOLVED", tradable: false, issueGagnante: "oui",
-    theme: "Politique", regions: ["Monde"], imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMmExYjNhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjOEI3Q0ZGIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfj5vvuI88L3RleHQ+PC9zdmc+",
-    closeAt: ilYA(240), resolvedAt: ilYA(30), resolutionTimeConfidence: "EXACT",
-    volume: 3100000, bettorCount: 21000,
-    resolutionSource: "Congressional record",
-    descriptionOriginal: "Resolved YES: appropriations were signed in time.",
-    issues: [
-      { id: "oui", label: "OUI", prob: 1, history: serie(0.6, 1, 60, 131) },
-      { id: "non", label: "NON", prob: 0, history: serie(0.4, 0, 60, 132) }
-    ]
-  },
-  {
-    id: "mf-spacex-lancement", source: "MANIFOLD", externalId: "mfSPX12",
-    sourceUrl: "https://manifold.markets/example/starship-flight-12",
-    titleOriginal: "Starship flight 12 reaches orbit?",
-    marketType: "BINARY", status: "RESOLVED", tradable: false, issueGagnante: "oui",
-    theme: "Espace", regions: ["Monde"], imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWIxZjNhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjOEI3Q0ZGIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfmoA8L3RleHQ+PC9zdmc+",
-    closeAt: ilYA(400), resolvedAt: ilYA(180), resolutionTimeConfidence: "EXACT",
-    volume: 26000, bettorCount: 510, createur: "space_bets",
-    resolutionSource: "Webdiffusion officielle SpaceX",
-    descriptionOriginal: "Resolved YES.",
-    issues: [
-      { id: "oui", label: "OUI", prob: 1, history: serie(0.55, 1, 60, 141) },
-      { id: "non", label: "NON", prob: 0, history: serie(0.45, 0, 60, 142) }
-    ]
-  },
-  {
-    id: "pm-euro-dollar", source: "POLYMARKET", externalId: "0xEURUSD",
-    sourceUrl: "https://polymarket.com/event/eur-usd-parity",
-    titleOriginal: "EUR/USD below parity before July?",
-    marketType: "BINARY", status: "RESOLVED", tradable: false, issueGagnante: "non",
-    theme: "Finance", regions: ["Europe"], imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWIzMDNhIi8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjNERBM0ZGIiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfkrY8L3RleHQ+PC9zdmc+",
-    closeAt: ilYA(500), resolvedAt: ilYA(490), resolutionTimeConfidence: "EXACT",
-    volume: 720000, bettorCount: 8800,
-    resolutionSource: "ECB reference rate",
-    descriptionOriginal: "Resolved NO.",
-    issues: [
-      { id: "oui", label: "OUI", prob: 0, history: serie(0.3, 0, 60, 151) },
-      { id: "non", label: "NON", prob: 1, history: serie(0.7, 1, 60, 152) }
-    ]
-  },
-  {
-    id: "mf-jo-annules", source: "MANIFOLD", externalId: "mfJOX",
-    sourceUrl: "https://manifold.markets/example/cancelled-market",
-    titleOriginal: "Will the exhibition match take place as announced?",
-    marketType: "BINARY", status: "CANCELLED", tradable: false,
-    theme: "Sport", regions: ["Europe"], imageUrl: "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA5NiA5NiI+PGRlZnM+PGxpbmVhckdyYWRpZW50IGlkPSJnIiB4MT0iMCIgeTE9IjAiIHgyPSIxIiB5Mj0iMSI+PHN0b3Agb2Zmc2V0PSIwIiBzdG9wLWNvbG9yPSIjMWIzYTI0Ii8+PHN0b3Agb2Zmc2V0PSIxIiBzdG9wLWNvbG9yPSIjMjBDOTk3IiBzdG9wLW9wYWNpdHk9IjAuNTUiLz48L2xpbmVhckdyYWRpZW50PjwvZGVmcz48cmVjdCB3aWR0aD0iOTYiIGhlaWdodD0iOTYiIGZpbGw9InVybCgjZykiLz48dGV4dCB4PSI0OCIgeT0iNjAiIGZvbnQtc2l6ZT0iNDIiIHRleHQtYW5jaG9yPSJtaWRkbGUiPvCfj5/vuI88L3RleHQ+PC9zdmc+",
-    closeAt: ilYA(100), resolvedAt: ilYA(50), resolutionTimeConfidence: "EXACT",
-    volume: 4300, bettorCount: 61, createur: "sports_misc",
-    resolutionSource: "Annulé par le créateur : question devenue sans objet (résolution N/A)",
-    descriptionOriginal: "Resolved N/A: the event was cancelled by the organizers, question is void.",
-    issues: [
-      { id: "oui", label: "OUI", prob: null, history: serie(0.5, 0.45, 40, 161) },
-      { id: "non", label: "NON", prob: null, history: serie(0.5, 0.55, 40, 162) }
-    ]
-  }
-];
-
-// Valeur nominale par défaut d'une part gagnante (réglage WINNING_SHARE_PAYOUT)
+/* ================= js/config.js ================= */
 const VALEUR_NOMINALE = 100;
-
-// 13, 14 : positions ouvertes (favorable, défavorable, vente partielle, fermée en attente, retardée)
-const POSITIONS = [
-  {
-    id: "pos-fed", marcheId: "pm-fed-juillet", issueId: "oui", issueLabel: "OUI",
-    parts: 6.76, valeurNominale: 100, prixMoyen: 37.0, probEntree: 0.37,
-    montantEngage: 250, montantExpose: 250, achatAt: ilYA(46),
-    lots: [{ id: "lot-fed-1", parts: 6.76, prixUnitaire: 37.0, valeurNominale: 100, date: ilYA(46) }],
-    chronologie: [
-      { t: ilYA(46), type: "achat", texte: "Achat initial : 6,76 parts OUI à 37,0" },
-      { t: ilYA(18), type: "variation", texte: "+5,2 points en 6 h après des chiffres d'inflation" },
-      { t: ilYA(2), type: "variation", texte: "+2,1 points sur 24 h" }
-    ]
-  },
-  {
-    id: "pos-psg", marcheId: "mf-psg-ligue1", issueId: "non", issueLabel: "NON",
-    parts: 8.33, valeurNominale: 100, prixMoyen: 24.0, probEntree: 0.24,
-    montantEngage: 200, montantExpose: 200, achatAt: ilYA(120),
-    lots: [{ id: "lot-psg-1", parts: 8.33, prixUnitaire: 24.0, valeurNominale: 100, date: ilYA(120) }],
-    chronologie: [
-      { t: ilYA(120), type: "achat", texte: "Achat initial : 8,33 parts NON à 24,0" },
-      { t: ilYA(30), type: "variation", texte: "-3,0 points après deux victoires du PSG" }
-    ]
-  },
-  {
-    id: "pos-shutdown", marcheId: "pm-shutdown-31", issueId: "non", issueLabel: "NON",
-    parts: 5.68, valeurNominale: 100, prixMoyen: 88.0, probEntree: 0.86,
-    montantEngage: 750, montantExpose: 500, achatAt: ilYA(70),
-    venteParielle: true,
-    lots: [
-      { id: "lot-shut-1", parts: 3.41, prixUnitaire: 88.0, valeurNominale: 100, date: ilYA(70) },
-      { id: "lot-shut-2", parts: 2.27, prixUnitaire: 88.2, valeurNominale: 100, date: ilYA(40) }
-    ],
-    ventes: [{ t: ilYA(10), parts: 2.84, prixUnitaire: 88.5, produit: 251.34 }],
-    chronologie: [
-      { t: ilYA(70), type: "achat", texte: "Achat initial : 5,68 parts NON à 86,0" },
-      { t: ilYA(40), type: "achat", texte: "Renforcement : 2,27 parts à 88,2" },
-      { t: ilYA(10), type: "vente", texte: "Vente partielle : 2,84 parts à 88,5 (+251,34 Éclats)" }
-    ]
-  },
-  {
-    id: "pos-canicule", marcheId: "mf-canicule-juillet", issueId: "oui", issueLabel: "OUI",
-    parts: 4.0, valeurNominale: 100, prixMoyen: 30.0, probEntree: 0.30,
-    montantEngage: 120, montantExpose: 120, achatAt: ilYA(300),
-    fermee: true,
-    lots: [{ id: "lot-can-1", parts: 4.0, prixUnitaire: 30.0, valeurNominale: 100, date: ilYA(300) }],
-    chronologie: [
-      { t: ilYA(300), type: "achat", texte: "Achat initial : 4 parts OUI à 30,0" },
-      { t: ilYA(20), type: "fermeture", texte: "Marché fermé : résolution attendue de Météo-France" }
-    ]
-  },
-  {
-    id: "pos-petrole", marcheId: "pm-petrole-90", issueId: "oui", issueLabel: "OUI",
-    parts: 2.86, valeurNominale: 100, prixMoyen: 35.0, probEntree: 0.35,
-    montantEngage: 100, montantExpose: 100, achatAt: ilYA(200),
-    lots: [{ id: "lot-oil-1", parts: 2.86, prixUnitaire: 35.0, valeurNominale: 100, date: ilYA(200) }],
-    chronologie: [
-      { t: ilYA(200), type: "achat", texte: "Achat initial : 2,86 parts OUI à 35,0" },
-      { t: ilYA(1), type: "alerte", texte: "Données retardées depuis 8 min sur cette position" }
-    ]
-  }
-];
-
-// 16 à 20 : règlements et claims
-const CLAIMS = [
-  {
-    id: "claim-shutdown", settlementId: "stl-shutdown-q2", marcheId: "pm-shutdown-evite",
-    titre: "Government shutdown avoided in Q2 2026?", source: "POLYMARKET",
-    etat: "CLAIMABLE", type: "GAIN", montant: 1240, mise: 500, parts: 12.4,
-    resoluAt: ilYA(30), issueLabel: "OUI"
-  },
-  {
-    id: "claim-metro", settlementId: "stl-metro-x", marcheId: "mf-jo-annules",
-    titre: "Will the exhibition match take place as announced?", source: "MANIFOLD",
-    etat: "REFUND_CLAIMABLE", type: "REMBOURSEMENT", montant: 180, mise: 180, parts: 4.1,
-    resoluAt: ilYA(50), issueLabel: "OUI", raison: "Résolution N/A par le créateur : question sans objet."
-  },
-  {
-    id: "claim-encours", settlementId: "stl-encours", marcheId: "mf-spacex-lancement",
-    titre: "Starship flight 12 reaches orbit?", source: "MANIFOLD",
-    etat: "CLAIMABLE", type: "GAIN", montant: 265, mise: 100, parts: 2.65,
-    resoluAt: ilYA(180), issueLabel: "OUI"
-  },
-  {
-    id: "claim-fait", settlementId: "stl-fait", marcheId: "mf-spacex-lancement",
-    titre: "Starship flight 11 static fire success?", source: "MANIFOLD",
-    etat: "CLAIMED", type: "GAIN", montant: 412, mise: 150, parts: 4.12,
-    resoluAt: ilYA(700), recupereAt: ilYA(690), issueLabel: "OUI"
-  }
-];
-
-const DEFAITES = [
-  {
-    id: "def-eurusd", marcheId: "pm-euro-dollar",
-    titre: "EUR/USD below parity before July?", source: "POLYMARKET",
-    mise: 300, issueLabel: "OUI", perte: -300, resoluAt: ilYA(490)
-  }
-];
-
-// Registre de démonstration du portefeuille (les plus récents d'abord)
-const LEDGER = [
-  { t: ilYA(10), montant: 251.34, source: "marches_vente", marcheId: "pm-shutdown-31", libelle: "Vente partielle · Shutdown NON" },
-  { t: ilYA(46), montant: -250, source: "marches_mise", marcheId: "pm-fed-juillet", libelle: "Achat OUI · Fed July" },
-  { t: ilYA(70), montant: -500, source: "marches_mise", marcheId: "pm-shutdown-31", libelle: "Achat NON · Shutdown" },
-  { t: ilYA(120), montant: -200, source: "marches_mise", marcheId: "mf-psg-ligue1", libelle: "Achat NON · PSG Ligue 1" },
-  { t: ilYA(200), montant: -100, source: "marches_mise", marcheId: "pm-petrole-90", libelle: "Achat OUI · Brent above 90" },
-  { t: ilYA(300), montant: -120, source: "marches_mise", marcheId: "mf-canicule-juillet", libelle: "Achat OUI · Canicule 42C" },
-  { t: ilYA(690), montant: 412, source: "marches_gain", marcheId: "mf-spacex-lancement", libelle: "Gain récupéré · Starship flight 11" },
-  { t: ilYA(750), montant: -150, source: "marches_mise", marcheId: "mf-spacex-lancement", libelle: "Achat OUI · Starship flight 11" },
-  { t: ilYA(2000), montant: 5000, source: "paris_sportifs_gain", application: "Pronos", libelle: "Gain récupéré dans Pronos" }
-];
-
-const SOLDE_DEMO = 12450;
-
-const NOTIFICATIONS = [
-  { id: "n1", t: ilYA(0.2), type: "claim", lu: false, titre: "Gain disponible",
-    texte: "1 240 Éclats vous attendent sur « Government shutdown avoided in Q2 2026? »", cible: "#/resultats" },
-  { id: "n2", t: ilYA(2), type: "variation", lu: false, titre: "Position favorable",
-    texte: "Fed July : +8,4 points depuis votre achat", cible: "#/enjeu" },
-  { id: "n3", t: ilYA(4), type: "cloture", lu: false, titre: "Clôture dans moins de 6 h",
-    texte: "SNCF strike suspended? ferme bientôt", cible: "#/marche/mf-greve-sncf" },
-  { id: "n4", t: ilYA(8), type: "technique", lu: true, titre: "Données retardées",
-    texte: "Brent above 90 : prix non actualisé depuis 8 min", cible: "#/enjeu" },
-  { id: "n5", t: ilYA(26), type: "decouverte", lu: true, titre: "Résumé quotidien",
-    texte: "6 nouveaux marchés dans vos thèmes (IA, Espace, France)", cible: "#/recherche" }
-];
-
 const THEMES = [
   "Politique", "Géopolitique", "Société", "Justice", "Économie", "Entreprises", "Finance",
   "Technologie", "Intelligence artificielle", "Internet", "Sciences", "Espace", "Santé",
@@ -1308,98 +781,10 @@ const THEMES = [
   "Sport", "Insolite"
 ];
 const REGIONS = ["France", "Europe", "Monde"];
-
-// Préférences de démonstration
-const PREFS_DEMO = {
-  themesSuivis: ["Intelligence artificielle", "Espace", "Économie"],
-  regionsSuivies: ["France", "Europe"],
-  horizonPrefereH: 24,
-  masques: ["Justice"],
-  filtresEnregistres: [
-    { id: "f1", nom: "France < 24 h tradable", criteres: "Région France · horizon 24 h · tradable" },
-    { id: "f2", nom: "IA les plus actifs", criteres: "Thème IA · tri activité récente" }
-  ]
-};
-
-// Catalogue initial des réglages (section 9.10 du hand-off)
-const REGLAGES = [
-  { cle: "WINNING_SHARE_PAYOUT", libelle: "Valeur nominale d'une part gagnante", categorie: "Économie", valeur: 100, defaut: 100, unite: "Éclats", type: "decimal", min: 10, max: 1000, portee: "Nouveaux lots seulement", sensible: true,
-    description: "Ce qu'une part de l'issue gagnante paie à la résolution.",
-    hausse: "Moins de parts pour une même mise, chiffres unitaires plus grands, rendement total inchangé.",
-    baisse: "Plus de parts pour une même mise, chiffres unitaires plus petits, rendement total inchangé." },
-  { cle: "MIN_ORDER_AMOUNT", libelle: "Mise minimale", categorie: "Économie", valeur: 10, defaut: 10, unite: "Éclats", type: "decimal", min: 1, max: 1000, portee: "Immédiate pour les nouveaux ordres",
-    description: "Plus petite transaction autorisée.",
-    hausse: "Réduit les micro-transactions.", baisse: "Autorise des essais moins risqués mais multiplie les écritures." },
-  { cle: "MAX_ORDER_AMOUNT", libelle: "Mise maximale par ordre", categorie: "Économie", valeur: 10000, defaut: 10000, unite: "Éclats", type: "decimal", min: 100, max: 100000, portee: "Immédiate pour les nouveaux ordres",
-    description: "Risque maximal d'une seule action.",
-    hausse: "Autorise des positions plus concentrées.", baisse: "Limite les erreurs et les pertes brutales." },
-  { cle: "MAX_MARKET_EXPOSURE_PERCENT", libelle: "Exposition maximale par marché", categorie: "Économie", valeur: 25, defaut: 25, unite: "%", type: "pourcentage", min: 1, max: 100, portee: "Immédiate pour les nouveaux ordres",
-    description: "Concentration autorisée sur une même question.",
-    hausse: "Permet des convictions fortes.", baisse: "Force la diversification." },
-  { cle: "MANIFOLD_LOCAL_SPREAD", libelle: "Spread miroir Manifold", categorie: "Économie", valeur: 0.01, defaut: 0.01, unite: "point", type: "decimal", min: 0, max: 0.1, portee: "Nouveaux ordres Manifold", sensible: true,
-    description: "Écart local entre prix d'achat et de vente sur les marchés Manifold.",
-    hausse: "Rend l'aller-retour plus coûteux et brûle plus d'Éclats.", baisse: "Rend le trading plus généreux et plus exploitable." },
-  { cle: "PRICE_TOLERANCE_POINTS", libelle: "Tolérance de variation du prix (points)", categorie: "Exécution", valeur: 0.02, defaut: 0.02, unite: "point", type: "decimal", min: 0, max: 0.2, portee: "Nouvelles confirmations",
-    description: "Écart maximal entre estimation et prix serveur avant reconfirmation.",
-    hausse: "Moins de reconfirmations, risque d'un prix moins favorable.", baisse: "Plus de contrôle, davantage de friction." },
-  { cle: "PRICE_TOLERANCE_RELATIVE", libelle: "Tolérance de variation du prix (relative)", categorie: "Exécution", valeur: 5, defaut: 5, unite: "%", type: "pourcentage", min: 0, max: 50, portee: "Nouvelles confirmations",
-    description: "Seuil relatif, combiné au seuil en points : le plus strict s'applique.",
-    hausse: "Moins de reconfirmations.", baisse: "Plus de contrôle." },
-  { cle: "ALLOW_PARTIAL_FILLS", libelle: "Autoriser les exécutions partielles", categorie: "Exécution", valeur: true, defaut: true, unite: "", type: "boolean", portee: "Nouveaux ordres Polymarket",
-    description: "Si la profondeur du carnet est insuffisante, exécuter ce qui est disponible.",
-    hausse: "Si activé, une partie de l'ordre peut être achetée.", baisse: "Si désactivé, tout l'ordre échoue lorsque la profondeur manque." },
-  { cle: "QUICK_STAKE_AMOUNTS", libelle: "Valeurs de mises rapides", categorie: "Exécution", valeur: "50, 100, 250, 500", defaut: "50, 100, 250, 500", unite: "Éclats", type: "liste", portee: "Interface immédiate",
-    description: "Raccourcis de montant du ticket.",
-    hausse: "Boutons adaptés aux grosses mises.", baisse: "Boutons adaptés aux petites mises." },
-  { cle: "PREFERRED_RESOLUTION_HOURS", libelle: "Horizon préféré", categorie: "Découverte", valeur: 24, defaut: 24, unite: "h", type: "duree", min: 1, max: 720, portee: "Fil personnalisé immédiat",
-    description: "Les marchés se résolvant sous cet horizon sont favorisés dans Pour moi.",
-    hausse: "Fil plus patient, plus de long terme.", baisse: "Fil concentré sur l'imminent." },
-  { cle: "DEFAULT_SOURCE_FILTER", libelle: "Sources visibles par défaut", categorie: "Découverte", valeur: "les deux", defaut: "les deux", unite: "", type: "liste", portee: "Navigation immédiate",
-    description: "Polymarket, Manifold ou les deux.",
-    hausse: "Catalogue plus large.", baisse: "Catalogue restreint à une source." },
-  { cle: "SHOW_READ_ONLY_MARKETS", libelle: "Afficher les marchés non négociables", categorie: "Découverte", valeur: "non dans Pour moi, oui dans Tout", defaut: "non dans Pour moi, oui dans Tout", unite: "", type: "liste", portee: "Navigation immédiate",
-    description: "Formats consultables mais sans trading (POLL, NUMERIC, données douteuses).",
-    hausse: "Plus de contenus visibles.", baisse: "Fil limité au négociable." },
-  { cle: "MIN_DEFAULT_VOLUME", libelle: "Volume minimal par défaut", categorie: "Découverte", valeur: 0, defaut: 0, unite: "Éclats", type: "decimal", min: 0, max: 1000000, portee: "Navigation immédiate",
-    description: "Filtre de volume appliqué aux listes par défaut. Conserver 0 pour le maximum de données.",
-    hausse: "Moins de petits marchés affichés.", baisse: "Catalogue maximal." },
-  { cle: "METADATA_SYNC_SECONDS", libelle: "Synchronisation des métadonnées", categorie: "Fraîcheur", valeur: 300, defaut: 300, unite: "s", type: "duree", min: 60, max: 3600, portee: "Prochaine tâche planifiée",
-    description: "Fréquence d'import des événements et marchés.",
-    hausse: "Économise les requêtes, retarde les nouveautés.", baisse: "Améliore la fraîcheur, consomme plus." },
-  { cle: "OPEN_POSITION_SYNC_SECONDS", libelle: "Vérification des positions ouvertes", categorie: "Fraîcheur", valeur: 60, defaut: 60, unite: "s", type: "duree", min: 30, max: 900, portee: "Prochaine tâche planifiée",
-    description: "Fréquence de contrôle des marchés où une position est ouverte.",
-    hausse: "Moins de requêtes, règlements plus tardifs.", baisse: "Suivi plus réactif." },
-  { cle: "STALE_PRICE_SECONDS", libelle: "Seuil de données retardées", categorie: "Fraîcheur", valeur: 120, defaut: 120, unite: "s", type: "duree", min: 30, max: 3600, portee: "Interface immédiate",
-    description: "Âge au-delà duquel un prix de position ouverte est marqué retardé.",
-    hausse: "Moins d'alertes, tolère des prix plus vieux.", baisse: "Alerte plus tôt." },
-  { cle: "PRICE_SNAPSHOT_SECONDS", libelle: "Snapshots de prix", categorie: "Fraîcheur", valeur: 300, defaut: 300, unite: "s", type: "duree", min: 60, max: 3600, portee: "Prochaine collecte",
-    description: "Granularité des historiques internes.",
-    hausse: "Graphiques moins fins, moins de stockage.", baisse: "Graphiques plus fins." },
-  { cle: "FULL_RECONCILIATION_HOURS", libelle: "Réconciliation générale", categorie: "Fraîcheur", valeur: 24, defaut: 24, unite: "h", type: "duree", min: 6, max: 168, portee: "Prochaine tâche planifiée",
-    description: "Vérification complète de toutes les positions non réglées.",
-    hausse: "Rattrapage plus rare.", baisse: "Rattrapage plus fréquent." },
-  { cle: "NOTIFY_PRICE_MOVE_POINTS", libelle: "Seuil de variation notifiée", categorie: "Notifications", valeur: 5, defaut: 5, unite: "points", type: "decimal", min: 1, max: 50, portee: "Notifications futures",
-    description: "Variation absolue d'une position déclenchant une notification.",
-    hausse: "Moins de notifications.", baisse: "Plus de notifications." },
-  { cle: "CLOSING_ALERT_MINUTES", libelle: "Alerte de clôture", categorie: "Notifications", valeur: 60, defaut: 60, unite: "min", type: "duree", min: 5, max: 1440, portee: "Notifications futures",
-    description: "Délai avant clôture déclenchant une alerte.",
-    hausse: "Alerte plus tôt.", baisse: "Alerte plus tardive." },
-  { cle: "UNCLAIMED_FIRST_REMINDER_HOURS", libelle: "Premier rappel de gain non récupéré", categorie: "Notifications", valeur: 24, defaut: 24, unite: "h", type: "duree", min: 1, max: 168, portee: "Prochain rappel",
-    description: "Délai avant le premier rappel d'un claim ouvert.",
-    hausse: "Rappel plus tardif.", baisse: "Rappel plus rapide." },
-  { cle: "UNCLAIMED_REPEAT_REMINDER_HOURS", libelle: "Rappels suivants", categorie: "Notifications", valeur: 72, defaut: 72, unite: "h", type: "duree", min: 24, max: 336, portee: "Rappels suivants, désactivables",
-    description: "Fréquence des rappels tant que le gain n'est pas récupéré.",
-    hausse: "Moins de rappels.", baisse: "Rappels plus fréquents." },
-  { cle: "HOME_SECTION_ITEM_LIMIT", libelle: "Éléments par section d'accueil", categorie: "Interface", valeur: 12, defaut: 12, unite: "", type: "entier", min: 3, max: 50, portee: "Interface immédiate",
-    description: "Nombre maximal de cartes par rangée de l'accueil.",
-    hausse: "Accueil plus dense.", baisse: "Accueil plus court." }
-];
-
-// 21. États de démonstration des sources (pilotables depuis la barre démo du prototype)
 const ETAT_SOURCES_DEFAUT = {
-  polymarket: { etat: "ok", libelle: "Polymarket : opérationnel" },
-  manifold: { etat: "ok", libelle: "Manifold : opérationnel" },
-  websocket: { etat: "connecte", depuisS: 8 }
+  polymarket: { etat: "chargement", libelle: "Polymarket : connexion…" },
+  manifold: { etat: "chargement", libelle: "Manifold : connexion…" },
+  websocket: { etat: "catalogue", depuisS: 0 }
 };
 
 
@@ -1477,7 +862,7 @@ function normaliserMarchePolymarket(marche) {
     label: String(label).toUpperCase() === "YES" ? "OUI" : String(label).toUpperCase() === "NO" ? "NON" : String(label),
     prob: Number.isFinite(Number(prix[index])) ? Number(prix[index]) : null,
     prev24h: index === 0 && Number.isFinite(Number(marche.oneDayPriceChange))
-      ? Number(prix[index]) - Number(marche.oneDayPriceChange)
+      ? Math.min(1, Math.max(0, Number(prix[index]) - Number(marche.oneDayPriceChange)))
       : null,
     history: [],
     tokenId: tokens[index] ? String(tokens[index]) : null
@@ -1905,91 +1290,233 @@ function suivreTempsReel(marche, surMiseAJour) {
 }
 
 
+/* ================= js/api/supabase.js ================= */
+const SUPABASE_URL = "https://psutbulpezfdftmaqkoo.supabase.co";
+const SUPABASE_KEY = "sb_publishable_KTE_3tQq6eGEo4z2f4QrUA_v7F4K4fT";
+const CLE_SESSION = "eclats_session";
+
+let session = null;
+const stockage = typeof localStorage === "undefined" ? null : localStorage;
+try { session = JSON.parse(stockage?.getItem(CLE_SESSION) || "null"); } catch { /* session invalide */ }
+
+function sauverSession(valeur) {
+  session = valeur;
+  if (valeur) stockage?.setItem(CLE_SESSION, JSON.stringify(valeur));
+  else stockage?.removeItem(CLE_SESSION);
+}
+
+function utilisateur() { return session?.user || null; }
+function estConnecte() { return Boolean(session?.access_token || session?.refresh_token); }
+
+async function connexion(email, password) {
+  const reponse = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password })
+  });
+  const donnees = await reponse.json();
+  if (!reponse.ok) throw new Error(donnees.error_description || donnees.msg || "Connexion refusée.");
+  sauverSession(donnees);
+  return donnees.user;
+}
+
+function deconnexion() { sauverSession(null); }
+
+async function rafraichir() {
+  if (!session?.refresh_token) return false;
+  const reponse = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: { apikey: SUPABASE_KEY, "Content-Type": "application/json" },
+    body: JSON.stringify({ refresh_token: session.refresh_token })
+  });
+  if (!reponse.ok) { sauverSession(null); return false; }
+  sauverSession(await reponse.json());
+  return true;
+}
+
+async function appel(path, options = {}, dejaRetente = false) {
+  const headers = {
+    apikey: SUPABASE_KEY,
+    "Content-Type": "application/json",
+    ...(options.headers || {})
+  };
+  if (session?.access_token) headers.Authorization = `Bearer ${session.access_token}`;
+  const reponse = await fetch(`${SUPABASE_URL}${path}`, { ...options, headers });
+  if (reponse.status === 401 && !dejaRetente && await rafraichir()) {
+    return appel(path, options, true);
+  }
+  const texte = await reponse.text();
+  if (!reponse.ok) {
+    let message = `Erreur ${reponse.status}`;
+    try {
+      const erreur = JSON.parse(texte);
+      message = erreur.message || erreur.error_description || erreur.hint || message;
+    } catch { /* réponse non JSON */ }
+    throw new Error(message);
+  }
+  return texte ? JSON.parse(texte) : null;
+}
+
+function rpc(nom, args = {}) {
+  return appel(`/rest/v1/rpc/${nom}`, { method: "POST", body: JSON.stringify(args) });
+}
+
+function rest(table, params = {}) {
+  const query = new URLSearchParams(params).toString();
+  return appel(`/rest/v1/${table}${query ? `?${query}` : ""}`);
+}
+
+
+/* ================= js/integration/eclats-wallet.js ================= */
+function nombrePortefeuille(valeur) {
+  const resultat = Number(valeur);
+  return Number.isFinite(resultat) ? resultat : 0;
+}
+
+function positionDepuis(ligne) {
+  return {
+    id: ligne.id,
+    marcheId: `${ligne.source === "POLYMARKET" ? "pm" : "mf"}-${ligne.market_external_id}`,
+    issueId: ligne.outcome_external_id,
+    issueLabel: ligne.outcome_label,
+    parts: nombrePortefeuille(ligne.shares),
+    valeurNominale: 100,
+    prixMoyen: nombrePortefeuille(ligne.average_price),
+    probEntree: nombrePortefeuille(ligne.average_price) / 100,
+    montantEngage: nombrePortefeuille(ligne.cost_basis),
+    montantExpose: nombrePortefeuille(ligne.cost_basis),
+    achatAt: ligne.opened_at,
+    lots: [{
+      id: ligne.id,
+      parts: nombrePortefeuille(ligne.shares),
+      prixUnitaire: nombrePortefeuille(ligne.average_price),
+      valeurNominale: 100,
+      date: ligne.opened_at
+    }],
+    chronologie: []
+  };
+}
+
+async function chargerPortefeuille() {
+  if (!estConnecte()) return { connecte: false, utilisateur: null, solde: null, positions: [], ledger: [] };
+  const [solde, positions, ledger] = await Promise.all([
+    rpc("eclats_balance"),
+    rest("mk_user_positions", { select: "*", order: "updated_at.desc" }),
+    rest("eclats_ledger", {
+      select: "id,amount,source,app_id,kind,reason,reference_id,occurred_at,created_at,metadata",
+      order: "created_at.desc",
+      limit: "100"
+    })
+  ]);
+  return {
+    connecte: true,
+    utilisateur: utilisateur(),
+    solde: nombrePortefeuille(solde),
+    positions: (positions || []).map(positionDepuis),
+    ledger: (ledger || []).map((ligne) => {
+      const sourceMarche = ligne.metadata?.source;
+      const idExterne = ligne.metadata?.market_external_id;
+      return {
+        id: ligne.id,
+        t: ligne.occurred_at || ligne.created_at,
+        montant: nombrePortefeuille(ligne.amount),
+        source: ligne.source,
+        application: ligne.app_id,
+        marcheId: sourceMarche && idExterne
+          ? `${sourceMarche === "POLYMARKET" ? "pm" : "mf"}-${idExterne}`
+          : null,
+        libelle: ligne.reason || ligne.source
+      };
+    })
+  };
+}
+
+async function acheter({ marche, issueId, montant, idempotencyKey }) {
+  return rpc("mk_buy", {
+    p_source: marche.source,
+    p_market_external_id: String(marche.externalId),
+    p_outcome_external_id: String(issueId),
+    p_amount: montant,
+    p_idempotency_key: idempotencyKey
+  });
+}
+
+async function vendre({ positionId, parts, idempotencyKey }) {
+  return rpc("mk_sell", {
+    p_position_id: positionId,
+    p_shares: parts,
+    p_idempotency_key: idempotencyKey
+  });
+}
+
+
 /* ================= js/etat.js ================= */
-// État global du prototype Phase A.
-// Tout est local (mémoire + localStorage) : aucune connexion réseau, aucune mutation financière.
-
-
-const CLE_STOCKAGE = "marches-proto";
-const CLE_STOCKAGE_HISTORIQUE = "eclats-marches-proto";
+const CLE_STOCKAGE = "marches-reel";
 
 function charger() {
-  try {
-    const valeur = localStorage.getItem(CLE_STOCKAGE)
-      || localStorage.getItem(CLE_STOCKAGE_HISTORIQUE);
-    return JSON.parse(valeur) || {};
-  }
+  try { return JSON.parse(localStorage.getItem(CLE_STOCKAGE) || "{}"); }
   catch { return {}; }
 }
-function sauver() {
-  localStorage.setItem(CLE_STOCKAGE, JSON.stringify({
-    favoris: [...etat.favoris],
-    claimsRecuperes: [...etat.claimsRecuperes],
-    notifsLues: [...etat.notifsLues],
-    notifsVues: [...etat.notifsVues],
-    theme: etat.theme,
-    solde: etat.solde
-  }));
-}
-
 const memo = charger();
 
 const etat = {
-  marches: MARCHES,
-  positions: POSITIONS,
-  claims: CLAIMS,
-  defaites: DEFAITES,
-  ledger: [...LEDGER],
-  reglages: REGLAGES,
-  prefs: PREFS_DEMO,
+  marches: [],
+  positions: [],
+  claims: [],
+  defaites: [],
+  ledger: [],
+  reglages: [],
+  prefs: {
+    themesSuivis: memo.themesSuivis || [],
+    regionsSuivies: memo.regionsSuivies || [],
+    horizonPrefereH: 24,
+    masques: memo.masques || [],
+    filtresEnregistres: memo.filtresEnregistres || []
+  },
   valeurNominale: VALEUR_NOMINALE,
-
-  solde: typeof memo.solde === "number" ? memo.solde : SOLDE_DEMO,
-  favoris: new Set(memo.favoris || ["pm-fed-juillet", "mf-greve-sncf"]),
-  claimsRecuperes: new Set(memo.claimsRecuperes || []),
-  notifsLues: new Set(memo.notifsLues || []),   // ouvertes individuellement (retire la pastille de la ligne)
-  notifsVues: new Set(memo.notifsVues || []),   // simplement consultées (retire le badge de la cloche)
+  solde: null,
+  compteConnecte: estConnecte(),
+  compteUtilisateur: utilisateur(),
+  chargementCompte: estConnecte(),
+  erreurCompte: null,
+  favoris: new Set(memo.favoris || []),
+  claimsRecuperes: new Set(),
+  notifsLues: new Set(),
+  notifsVues: new Set(),
   theme: memo.theme || "sombre",
   chargementCatalogue: true,
   modeDonnees: "chargement",
   catalogueActualiseAt: null,
   enrichissementsEnCours: new Set(),
-
-  // Bascules de la barre démo (états section 11)
-  demo: {
-    panne_polymarket: false,
-    panne_manifold: false,
-    ws_deconnecte: false,
-    chargement: false,
-    solde_insuffisant: false,
-    prix_modifie: false,
-    erreur_inconnue: false
-  },
-
   sources: structuredClone(ETAT_SOURCES_DEFAUT),
   ecouteurs: new Set()
 };
+
+function sauver() {
+  localStorage.setItem(CLE_STOCKAGE, JSON.stringify({
+    favoris: [...etat.favoris],
+    themesSuivis: etat.prefs.themesSuivis,
+    regionsSuivies: etat.prefs.regionsSuivies,
+    masques: etat.prefs.masques,
+    filtresEnregistres: etat.prefs.filtresEnregistres,
+    theme: etat.theme
+  }));
+}
 
 function notifier() {
   sauver();
   etat.ecouteurs.forEach((fn) => fn());
 }
 function surChangement(fn) { etat.ecouteurs.add(fn); }
-
 function marche(id) { return etat.marches.find((m) => m.id === id); }
 
 async function chargerDetailMarche(id, issueId) {
   const cible = marche(id);
   if (!cible || cible.detailEtat === "ok" || etat.enrichissementsEnCours.has(id)) return false;
   etat.enrichissementsEnCours.add(id);
-  try {
-    await enrichirMarche(cible, issueId);
-  } catch {
-    // La fiche conserve les données du catalogue et affiche l'état dégradé.
-  } finally {
-    etat.enrichissementsEnCours.delete(id);
-    notifier();
-  }
+  try { await enrichirMarche(cible, issueId); }
+  catch { /* le catalogue reste consultable */ }
+  finally { etat.enrichissementsEnCours.delete(id); notifier(); }
   return true;
 }
 
@@ -1997,22 +1524,9 @@ async function chargerDonneesReelles() {
   etat.chargementCatalogue = true;
   notifier();
   const resultat = await chargerCatalogueReel();
-  const idsLocauxNecessaires = new Set([
-    ...etat.positions.map((p) => p.marcheId),
-    ...etat.claims.map((c) => c.marcheId),
-    ...etat.defaites.map((d) => d.marcheId)
-  ]);
-  const supportsSimulation = MARCHES.filter((m) => idsLocauxNecessaires.has(m.id));
-
-  if (resultat.marches.length) {
-    etat.marches = [...resultat.marches, ...supportsSimulation];
-    etat.modeDonnees = resultat.origine;
-    etat.catalogueActualiseAt = new Date().toISOString();
-  } else {
-    etat.marches = MARCHES;
-    etat.modeDonnees = "demo";
-  }
-
+  etat.marches = resultat.marches;
+  etat.modeDonnees = resultat.origine;
+  etat.catalogueActualiseAt = resultat.marches.length ? new Date().toISOString() : null;
   for (const source of ["polymarket", "manifold"]) {
     const info = resultat.sources[source];
     const nom = source === "polymarket" ? "Polymarket" : "Manifold";
@@ -2026,83 +1540,54 @@ async function chargerDonneesReelles() {
   return resultat;
 }
 
+async function chargerCompteReel() {
+  etat.chargementCompte = true;
+  etat.erreurCompte = null;
+  notifier();
+  try {
+    const portefeuille = await chargerPortefeuille();
+    etat.compteConnecte = portefeuille.connecte;
+    etat.compteUtilisateur = portefeuille.utilisateur;
+    etat.solde = portefeuille.solde;
+    etat.positions = portefeuille.positions;
+    etat.ledger = portefeuille.ledger;
+  } catch (erreur) {
+    etat.erreurCompte = erreur.message;
+    etat.solde = null;
+    etat.positions = [];
+    etat.ledger = [];
+  } finally {
+    etat.chargementCompte = false;
+    notifier();
+  }
+}
+
+async function executerOrdre({ marche: marcheCible, issueId, mode, montant, parts, idempotencyKey }) {
+  if (!etat.compteConnecte) throw new Error("Connectez-vous au portefeuille Éclats.");
+  const resultat = mode === "vente"
+    ? await vendre({
+      positionId: etat.positions.find((p) => p.marcheId === marcheCible.id)?.id,
+      parts,
+      idempotencyKey
+    })
+    : await acheter({ marche: marcheCible, issueId, montant, idempotencyKey });
+  await chargerCompteReel();
+  return resultat;
+}
+
 function basculerFavori(id) {
-  if (etat.favoris.has(id)) etat.favoris.delete(id);
-  else etat.favoris.add(id);
+  if (etat.favoris.has(id)) etat.favoris.delete(id); else etat.favoris.add(id);
   notifier();
 }
-
-// Badge de la cloche : notifications ni consultées ni déjà lues à l'origine.
-function notificationsNonVues() {
-  return NOTIFICATIONS.filter((n) => !etat.notifsVues.has(n.id) && !n.lu);
-}
-function toutesNotifications() { return NOTIFICATIONS; }
-function marquerNotifLue(id) { etat.notifsLues.add(id); etat.notifsVues.add(id); notifier(); }
-function marquerToutLu() {
-  NOTIFICATIONS.forEach((n) => { etat.notifsLues.add(n.id); etat.notifsVues.add(n.id); });
-  notifier();
-}
-// Ouvrir le centre de notifications suffit à éteindre le badge, sans forcer à
-// ouvrir chaque ligne : on les a vues, elles ne nous intéressent peut-être pas.
-function marquerToutesVues() {
-  let change = false;
-  NOTIFICATIONS.forEach((n) => { if (!etat.notifsVues.has(n.id)) { etat.notifsVues.add(n.id); change = true; } });
-  if (change) notifier();
-}
-
-function etatClaim(c) {
-  if (etat.claimsRecuperes.has(c.id)) return "CLAIMED";
-  return c.etat;
-}
-function claimsOuverts() {
-  return etat.claims.filter((c) => ["CLAIMABLE", "REFUND_CLAIMABLE"].includes(etatClaim(c)));
-}
-function totalARecuperer() {
-  return claimsOuverts().reduce((s, c) => s + c.montant, 0);
-}
-
-// Simulation de la récupération d'un claim : la vraie version passera par une fonction
-// SQL atomique côté Supabase (voir TRADING_ENGINE.md). Ici : délai + crédit local unique.
-const claimsEnCours = new Set();
-function recupererClaim(id) {
-  return new Promise((resolve, reject) => {
-    const c = etat.claims.find((x) => x.id === id);
-    if (!c) return reject(new Error("Claim introuvable"));
-    if (claimsEnCours.has(id) || etatClaim(c) === "CLAIMED" || etatClaim(c) === "CLAIMING") {
-      return reject(new Error("Déjà récupéré ou récupération en cours"));
-    }
-    claimsEnCours.add(id);
-    setTimeout(() => {
-      claimsEnCours.delete(id);
-      const avant = etat.solde;
-      etat.claimsRecuperes.add(id);
-      etat.solde = Math.round((etat.solde + c.montant) * 100) / 100;
-      etat.ledger.unshift({
-        t: new Date().toISOString(),
-        montant: c.montant,
-        source: c.type === "REMBOURSEMENT" ? "marches_remboursement" : "marches_gain",
-        marcheId: c.marcheId,
-        libelle: (c.type === "REMBOURSEMENT" ? "Remboursement récupéré · " : "Gain récupéré · ") + c.titre
-      });
-      notifier();
-      resolve({ avant, apres: etat.solde, montant: c.montant });
-    }, 900);
-  });
-}
-
-function reglerDemo(cle, valeur) {
-  etat.demo[cle] = valeur;
-  if (cle === "panne_polymarket") etat.sources.polymarket = valeur
-    ? { etat: "panne", libelle: "Polymarket : source indisponible depuis 12 min" }
-    : { etat: "ok", libelle: "Polymarket : opérationnel" };
-  if (cle === "panne_manifold") etat.sources.manifold = valeur
-    ? { etat: "panne", libelle: "Manifold : source indisponible depuis 3 min" }
-    : { etat: "ok", libelle: "Manifold : opérationnel" };
-  if (cle === "ws_deconnecte") etat.sources.websocket = valeur
-    ? { etat: "deconnecte", depuisS: 42 }
-    : { etat: "connecte", depuisS: 2 };
-  notifier();
-}
+function notificationsNonVues() { return 0; }
+function toutesNotifications() { return []; }
+function marquerNotifLue() {}
+function marquerToutLu() {}
+function marquerToutesVues() {}
+function etatClaim(c) { return c?.etat; }
+function claimsOuverts() { return []; }
+function totalARecuperer() { return 0; }
+function recupererClaim() { return Promise.reject(new Error("Aucun gain réel récupérable.")); }
 
 function basculerTheme() {
   etat.theme = etat.theme === "sombre" ? "clair" : "sombre";
@@ -2139,7 +1624,6 @@ const prix = (p) => p == null ? "?" : nf2.format(p * etat.valeurNominale);
 function fraicheur(m) {
   if (m.status !== "OPEN") return "";
   const s = m.fraicheurS ?? 0;
-  if (etat.demo.ws_deconnecte) return `<span class="pastille pastille-warn">Données retardées</span>`;
   if (m.donneesRetardees || s > 120) {
     const lib = s > 3600 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 60)} min`;
     return `<span class="pastille pastille-warn">Retardé · ${lib}</span>`;
@@ -2186,7 +1670,7 @@ const badgeSource = (source) =>
   `<span class="badge-source ${source.toLowerCase()}">${source === "POLYMARKET" ? "Polymarket" : "Manifold"}</span>`;
 
 function pastilleStatut(m) {
-  if (etat.demo["panne_" + m.source.toLowerCase()]) return `<span class="pastille pastille-no">Source indisponible</span>`;
+  if (etat.sources[m.source.toLowerCase()]?.etat !== "ok") return `<span class="pastille pastille-no">Source indisponible</span>`;
   switch (m.status) {
     case "OPEN": return m.tradable
       ? `<span class="pastille pastille-ok">Ouvert</span>`
@@ -2222,7 +1706,7 @@ function htmlVariation(issue) {
   return `<span class="variation ${cls}">${fleche} ${nf2.format(Math.abs(d))} pts (24 h)</span>`;
 }
 
-// ------- Graphiques SVG maison (Phase A) -------
+// ------- Graphiques SVG -------
 
 function sparkline(history, { w = 150, h = 34, depuis = null, ligne = null } = {}) {
   if (!history || history.length < 2) return `<span class="tres-muet">pas de données</span>`;
@@ -2392,7 +1876,7 @@ function plLatent(pos) {
 }
 
 function paiementPotentiel(pos) {
-  // Les lots des fixtures représentent les parts restantes après ventes partielles
+  // Les lots représentent les parts restantes après ventes partielles.
   return pos.lots.reduce((s, l) => s + l.parts * l.valeurNominale, 0);
 }
 
@@ -2437,12 +1921,10 @@ function demarrerRouteur(conteneur, apresRendu) {
 
 /* ================= js/pages/accueil.js ================= */
 // Accueil « Pour moi » : mélange de formats (section 9.2), ordre section 8.8.
-const ouverts = () => etat.marches.filter((m) => m.status === "OPEN" &&
-  !(etat.demo.panne_polymarket && m.source === "POLYMARKET") &&
-  !(etat.demo.panne_manifold && m.source === "MANIFOLD"));
+const ouverts = () => etat.marches.filter((m) => m.status === "OPEN");
 
 function pageAccueil() {
-  if (etat.demo.chargement || etat.chargementCatalogue) {
+  if (etat.chargementCatalogue) {
     return `<h1>Pour moi</h1><div class="rangee-cartes">${skeletons(4)}</div>
       <div class="rangee-titre"><h2 class="skeleton" style="width:220px">&nbsp;</h2></div>
       <div class="grille-cartes">${skeletons(6)}</div>`;
@@ -2571,8 +2053,6 @@ function score(m) {
 
 function filtrerMarches(q) {
   let liste = etat.marches.filter((m) => m.status === "OPEN" || q.statut === "tous");
-  if (etat.demo.panne_polymarket) liste = liste.filter((m) => m.source !== "POLYMARKET");
-  if (etat.demo.panne_manifold) liste = liste.filter((m) => m.source !== "MANIFOLD");
   if (q.q) {
     const t = q.q.toLowerCase();
     liste = liste.filter((m) => m.titleOriginal.toLowerCase().includes(t) ||
@@ -2617,7 +2097,7 @@ function lien(q, patch) {
 }
 
 function pageRecherche({ query: q }) {
-  if (etat.demo.chargement || etat.chargementCatalogue) {
+  if (etat.chargementCatalogue) {
     return `<h1>Recherche</h1><div class="grille-cartes">${skeletons(9)}</div>`;
   }
 
@@ -2679,13 +2159,13 @@ function pageRecherche({ query: q }) {
 
 /* ================= js/pages/fiche.js ================= */
 // Fiche événement/marché (9.4) + ticket de transaction (9.5).
-// Le ticket est une simulation locale : la version réelle passera par la prévisualisation
-// et l'exécution serveur (TRADING_ENGINE.md). États : achat, vente, confirmation, succès, erreur.
+// Les transactions sont confirmées par les RPC atomiques Supabase.
 //
 // Structure du ticket revue pour la clarté (retour utilisateur 22/07) :
 //  - on choisit d'abord un CAMP (OUI ou NON) via deux boutons de prix explicites ;
 //  - le mode Vendre n'apparaît que si une position existe, via un encart « Votre position »
 //    qui propose Renforcer et Vendre. Plus de double bascule OUI/NON + Acheter/Vendre.
+
 let ticket = null; // { marcheId, issueId, mode, montant, parts, etape, prixServeur, recu }
 
 function ouvrirTicket(marcheId, issueId, mode = "achat") {
@@ -2703,7 +2183,7 @@ function prixIndicatif(m, issueId, mode = "achat") {
   const issue = m.issues.find((i) => i.id === issueId);
   if (!issue || issue.prob == null) return null;
   // Chaque camp est coté à partir de SA probabilité, plus le spread (moitié de part
-  // et d'autre du prix). Le carnet des fixtures est illustratif et ne concerne que le
+  // et d'autre du prix). Le carnet public ne concerne que le
   // camp affiché, on ne s'en sert donc pas pour coter le camp opposé.
   const demiSpread = (m.source === "MANIFOLD" ? 0.01 : (m.spread ?? 0.02) / 2);
   const p = issue.prob;
@@ -2766,7 +2246,7 @@ function htmlTicket(m) {
       </div>
       <a class="btn btn-principal" href="#/enjeu">Voir ma position</a>
       <button class="btn btn-discret" data-ticket="reinit">Nouvelle transaction</button>
-      <p class="ticket-note">Simulation Phase A : aucun Éclat réel n'a bougé.</p>
+      <p class="ticket-note">Transaction confirmée dans le registre commun des Éclats.</p>
     </div>`;
   }
 
@@ -2831,7 +2311,7 @@ function htmlTicket(m) {
   // ---- Saisie : ACHAT ----
   const p = prixIndicatif(m, t.issueId, "achat");
   const prixU = p != null ? p * vn : null;
-  const soldeDispo = etat.demo.solde_insuffisant ? 12 : etat.solde;
+  const soldeDispo = etat.solde ?? 0;
   const montantOk = t.montant >= 10 && t.montant <= 10000;
   const soldeOk = t.montant <= soldeDispo;
   const parts = prixU ? t.montant / prixU : 0;
@@ -2875,13 +2355,15 @@ function htmlTicket(m) {
       <div><dt>Paiement potentiel</dt><dd class="num">${fmt(parts * vn)}</dd></div>
       <div><dt>Bénéfice potentiel</dt><dd class="num vert">+${fmt(Math.max(0, parts * vn - t.montant))}</dd></div>
     </div>
+    ${!etat.compteConnecte ? `<div class="ticket-erreur">Connectez votre portefeuille Éclats avant de miser.</div>` : ""}
+    ${ticket.erreur ? `<div class="ticket-erreur">${echap(ticket.erreur)}</div>` : ""}
     ${!montantOk ? `<div class="ticket-erreur">Mise entre 10 et 10 000 Éclats (réglages Économie).</div>` : ""}
     ${!soldeOk ? `<div class="ticket-erreur">Solde insuffisant : ${fmtEclats(soldeDispo)} disponibles.
       <a href="#/portefeuille" style="text-decoration:underline">Voir le portefeuille</a></div>` : ""}
     ${profondeurInsuffisante ? `<div class="ticket-avert">⚠ Profondeur du carnet insuffisante pour ce montant :
       seuls ${fmtEclats(25)} sont exécutables. L'ordre serait partiellement exécuté (réglage : exécutions partielles autorisées).</div>` : ""}
     <p class="ticket-note">Le prix affiché est une estimation : la confirmation utilisera le prix revérifié côté serveur.</p>
-    <button class="btn btn-principal" data-ticket="previsualiser" ${montantOk && soldeOk && prixU != null ? "" : "disabled"}>
+    <button class="btn btn-principal" data-ticket="previsualiser" ${etat.compteConnecte && montantOk && soldeOk && prixU != null ? "" : "disabled"}>
       Acheter ${echap(issue.label)} · ${fmtEclats(t.montant)}
     </button>
   </div>`;
@@ -2920,13 +2402,7 @@ function pageFiche({ params, query }) {
   const m = marche(params[0]);
   if (!m) return etatVide("🕳️", "Marché introuvable", "", `<a class="btn" href="#/accueil">Retour à l'accueil</a>`);
 
-  if (etat.demo.erreur_inconnue) {
-    return etatVide("💥", "Une erreur inattendue est survenue",
-      "Nos journaux ont enregistré le problème. Réessayez, et si l'erreur persiste, transmettez l'identifiant ci-dessous.",
-      `<p class="id-support">support: EM-${m.id}-4F7A2C</p><a class="btn" href="#/accueil">Retour</a>`);
-  }
-
-  const panne = etat.demo["panne_" + m.source.toLowerCase()];
+  const panne = etat.sources[m.source.toLowerCase()]?.etat !== "ok";
   if (query.t) ouvrirTicket(m.id, query.issue, query.mode || "achat");
 
   const ip = issuePrincipale(m);
@@ -3038,7 +2514,7 @@ function accrocherTicket(rerendre) {
     const sel = e.target.closest("[data-ticket=issue-select]");
     if (sel && ticket) { ticket.issueId = sel.value; rerendre(); }
   });
-  zone.addEventListener("click", (e) => {
+  zone.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-ticket]");
     if (!b || !ticket) return;
     const type = b.dataset.ticket;
@@ -3053,22 +2529,31 @@ function accrocherTicket(rerendre) {
     if (type === "reinit") { ouvrirTicket(ticket.marcheId, ticket.issueId, "achat"); rerendre(); }
     if (type === "previsualiser") {
       const p = prixIndicatif(m, ticket.issueId, ticket.mode);
-      const derive = etat.demo.prix_modifie ? 0.04 : (Math.random() - 0.5) * 0.006;
-      ticket.prixServeur = Math.min(0.99, Math.max(0.01, p + derive));
+      ticket.prixServeur = Math.min(0.99, Math.max(0.01, p));
       ticket.etape = "confirmation";
       rerendre();
     }
     if (type === "executer") {
-      const vn = etat.valeurNominale;
-      const estVente = ticket.mode === "vente";
-      const parts = estVente ? ticket.parts : ticket.montant / (ticket.prixServeur * vn);
-      ticket.recu = {
-        id: "tx-demo-" + Math.random().toString(36).slice(2, 8),
-        montant: estVente ? parts * ticket.prixServeur * vn : ticket.montant,
-        prix: ticket.prixServeur * vn,
-        parts
-      };
-      ticket.etape = "succes";
+      try {
+        const resultat = await executerOrdre({
+          marche: m,
+          issueId: ticket.issueId,
+          mode: ticket.mode,
+          montant: ticket.montant,
+          parts: ticket.parts,
+          idempotencyKey: `marches:${crypto.randomUUID()}`
+        });
+        ticket.recu = {
+          id: resultat.id,
+          montant: Number(resultat.montant),
+          prix: Number(resultat.prix),
+          parts: Number(resultat.parts)
+        };
+        ticket.etape = "succes";
+      } catch (erreur) {
+        ticket.erreur = erreur.message;
+        ticket.etape = "saisie";
+      }
       rerendre();
     }
   });
@@ -3128,7 +2613,7 @@ function cartePosition(pos, deplie) {
   const paiement = paiementPotentiel(pos);
   const histo = historiqueIssue(pos);
   const echeanceProche = m.expectedResolutionAt && new Date(m.expectedResolutionAt) - Date.now() < 24 * 3600e3 && m.status === "OPEN";
-  const retarde = m.donneesRetardees || etat.demo.ws_deconnecte;
+  const retarde = m.donneesRetardees;
 
   const message = m.status === "CLOSED"
     ? "Marché fermé : en attente de la décision de l'oracle source."
@@ -3187,7 +2672,7 @@ function cartePosition(pos, deplie) {
 }
 
 function pageEnjeu({ query }) {
-  if (etat.demo.chargement) {
+  if (etat.chargementCompte) {
     return `<h1>Mes positions</h1><div class="enjeu-entete skeleton" style="height:90px"></div>
       ${Array(3).fill('<div class="carte skeleton" style="height:150px; margin-top:12px"></div>').join("")}`;
   }
@@ -3277,19 +2762,21 @@ const ONGLETS_PORTEFEUILLE = [
 ];
 
 function pagePortefeuille({ query }) {
-  if (etat.demo.chargement) {
+  if (etat.chargementCompte) {
     return `<h1>Portefeuille</h1><div class="enjeu-entete skeleton" style="height:110px"></div>`;
+  }
+  if (!etat.compteConnecte) {
+    return `<h1>Portefeuille</h1>` + etatVide("🔐", "Portefeuille Éclats non connecté",
+      "Connectez-vous avec le même compte que dans les autres applications de l’écosystème.",
+      `<button class="btn btn-principal" data-action="ouvrir-connexion">Se connecter</button>`);
   }
   const onglet = query.o || "vue";
   const valPositions = etat.positions.reduce((s, p) => s + (valeurPosition(p) ?? p.montantExpose), 0);
   const aRecuperer = totalARecuperer();
-  const total = etat.solde + valPositions + aRecuperer;
+  const total = (etat.solde || 0) + valPositions + aRecuperer;
   const expose = etat.positions.reduce((s, p) => s + p.montantExpose, 0);
-  const plJour = 102; // démonstration
   const plTotal = etat.claims.filter(c => c.type === "GAIN").reduce((s, c) => s + c.montant - c.mise, 0)
     + etat.defaites.reduce((s, d) => s + d.perte, 0) + (valPositions - expose);
-
-  const courbe = Array.from({ length: 30 }, (_, i) => ({ t: Date.now() - (29 - i) * 24 * 3600e3, p: 0.8 + i * 0.006 + (i % 5) * 0.004 }));
 
   const contenus = {
     vue: `
@@ -3346,9 +2833,8 @@ function pagePortefeuille({ query }) {
       <div class="bloc"><span class="lib muet">Disponibles</span><div class="val num" style="font-size:1.15rem; font-weight:700">${fmt(etat.solde)}</div></div>
       <div class="bloc"><span class="lib muet">Positions</span><div class="val num" style="font-size:1.15rem; font-weight:700">${fmt(valPositions)}</div></div>
       <div class="bloc"><span class="lib muet">À récupérer</span><div class="val num orange" style="font-size:1.15rem; font-weight:700">${fmt(aRecuperer)}</div></div>
-      <div class="bloc"><span class="lib muet">Résultat aujourd'hui</span><div class="val num vert">${fmtSigne(plJour)}</div></div>
       <div class="bloc"><span class="lib muet">Résultat total</span><div class="val num ${plTotal >= 0 ? "vert" : "rouge"}">${fmtSigne(plTotal)}</div></div>
-      <div class="bloc" style="min-width:180px">${sparkline(courbe, { w: 180, h: 44 })}<span class="lib tres-muet">Valeur sur 30 jours</span></div>
+      <div class="bloc"><span class="lib muet">Registre</span><div class="val num">${etat.ledger.length}</div><span class="lib tres-muet">mouvements chargés</span></div>
     </div>
 
     <div class="chips" style="margin-top:14px">
@@ -3359,116 +2845,15 @@ function pagePortefeuille({ query }) {
 
 
 /* ================= js/pages/resultats.js ================= */
-// Page Résultats (9.8) : gains à récupérer, gagnés, perdus, annulés, stats.
-// La récupération est le moment central : bouton unique, crédit après confirmation
-// « serveur » (simulée en Phase A), animation de transfert vers le solde.
-function carteClaim(c) {
-  const e = etatClaim(c);
-  const estRemboursement = c.type === "REMBOURSEMENT";
-  const benefice = c.montant - c.mise;
-  if (e === "CLAIMED") {
-    return `<div class="carte" style="margin-bottom:10px">
-      <div class="pos-entetes">${badgeSource(c.source)}
-        <span class="carte-titre" style="flex:1">${echap(c.titre)}</span>
-        <span class="muet num">mise ${fmt(c.mise)} → ${estRemboursement ? "remboursé" : "payé"} ${fmt(c.montant)}</span>
-      </div>
-      <button class="btn btn-claim-fait" disabled>✓ ${estRemboursement ? "Remboursement récupéré" : "Gain récupéré"} · +${fmt(c.montant)} Éclats</button>
-    </div>`;
-  }
-  if (e === "CLAIMING") {
-    return `<div class="carte carte-claim" style="margin-bottom:10px">
-      <div class="pos-entetes">${badgeSource(c.source)}
-        <span class="carte-titre" style="flex:1">${echap(c.titre)}</span>
-        <span class="claim-montant num">${fmt(c.montant)}</span>
-      </div>
-      <button class="btn btn-claim" disabled>Récupération…</button>
-      <p class="tres-muet">Une erreur réseau pendant la récupération ne provoque jamais de double crédit : l'état est relu côté serveur avant toute nouvelle tentative.</p>
-    </div>`;
-  }
-  return `<div class="carte carte-claim eclat-anim" style="margin-bottom:10px" data-claim-carte="${c.id}">
-    <div class="pos-entetes">${badgeSource(c.source)}
-      <span class="carte-titre" style="flex:1">${echap(c.titre)}</span>
-      <span class="claim-montant num">${fmt(c.montant)}</span>
-    </div>
-    <p class="pos-message">
-      ${estRemboursement
-        ? `${echap(c.raison || "Marché annulé par la source.")} Remboursement du coût d'acquisition restant : ${fmtEclats(c.montant)}.`
-        : `Issue gagnante : ${echap(c.issueLabel)} · mise ${fmt(c.mise)} → paiement ${fmt(c.montant)} · bénéfice net ${fmtSigne(benefice)}`}
-    </p>
-    <button class="btn btn-claim" data-action="recuperer" data-claim="${c.id}">
-      ${estRemboursement ? "Récupérer le remboursement" : `Récupérer ${fmt(c.montant)} Éclats`}
-    </button>
-  </div>`;
-}
-
 function pageResultats() {
-  if (etat.demo.chargement) {
-    return `<h1>Résultats</h1>${Array(4).fill('<div class="carte skeleton" style="height:110px; margin-bottom:10px"></div>').join("")}`;
+  if (etat.chargementCompte) return `<h1>Résultats</h1><div class="carte skeleton" style="height:120px"></div>`;
+  if (!etat.compteConnecte) {
+    return `<h1>Résultats</h1>` + etatVide("🔐", "Connectez votre portefeuille Éclats",
+      "Les résultats sont personnels et proviennent exclusivement de vos positions réelles.",
+      `<button class="btn btn-principal" data-action="ouvrir-connexion">Se connecter</button>`);
   }
-  const ouverts = claimsOuverts();
-  const total = totalARecuperer();
-  const gagnes = etat.claims.filter((c) => c.type === "GAIN");
-  const rembourses = etat.claims.filter((c) => c.type === "REMBOURSEMENT");
-  const enAttente = etat.positions.filter((p) => etat.marches.find((m) => m.id === p.marcheId)?.status === "CLOSED");
-
-  const meilleurGain = Math.max(...gagnes.map((c) => c.montant - c.mise), 0);
-  const pirePerte = Math.min(...etat.defaites.map((d) => d.perte), 0);
-  const nbGagnes = gagnes.length, nbPerdus = etat.defaites.length;
-  const totalGagne = gagnes.reduce((s, c) => s + c.montant - c.mise, 0);
-  const totalPerdu = etat.defaites.reduce((s, d) => s + d.perte, 0);
-
-  return `
-    <h1>Résultats</h1>
-    ${total > 0 ? `<div class="bandeau bandeau-claim">✨ <strong>${fmtEclats(total)}</strong> à récupérer
-      <a class="btn btn-discret" href="#/resultats">↓ Voir</a></div>` : ""}
-
-    <div class="rangee-titre"><h2>🏆 Gagnés et à récupérer</h2></div>
-    ${gagnes.length ? gagnes.map(carteClaim).join("") : etatVide("🏆", "Aucun gain pour l'instant")}
-
-    <div class="rangee-titre"><h2>↩ Annulés</h2></div>
-    ${rembourses.length ? rembourses.map(carteClaim).join("")
-      : etatVide("↩", "Aucune annulation")}
-
-    <div class="rangee-titre"><h2>✘ Perdus récemment</h2></div>
-    ${etat.defaites.length ? `<div class="carte liste-compacte">
-      ${etat.defaites.map((d) => `<div class="ligne-compacte">
-        ${badgeSource(d.source)}
-        <span class="carte-titre" style="flex:1">${echap(d.titre)}</span>
-        <span class="tres-muet">issue ${echap(d.issueLabel)}</span>
-        <span class="num rouge">${fmtSigne(d.perte)}</span>
-      </div>`).join("")}</div>` : etatVide("✘", "Aucune perte, pour l'instant")}
-
-    <div class="rangee-titre"><h2>⏳ En attente de résolution</h2></div>
-    ${enAttente.length ? `<div class="carte liste-compacte">
-      ${enAttente.map((p) => {
-        const m = etat.marches.find((x) => x.id === p.marcheId);
-        return `<a class="ligne-compacte" href="#/marche/${m.id}">
-          ${badgeSource(m.source)}
-          <span class="carte-titre" style="flex:1">${echap(m.titleOriginal)}</span>
-          <span class="pastille pastille-warn">Fermé · résolution en attente</span>
-        </a>`;
-      }).join("")}</div>` : etatVide("⏳", "Rien en attente")}
-
-    <div class="rangee-titre"><h2>📊 Performance</h2></div>
-    <div class="stats-grille">
-      <div class="stat"><div class="val num vert">+${fmt(meilleurGain)}</div><div class="lib">Meilleur gain net</div></div>
-      <div class="stat"><div class="val num rouge">${fmt(pirePerte)}</div><div class="lib">Pire perte</div></div>
-      <div class="stat"><div class="val num ${totalGagne + totalPerdu >= 0 ? "vert" : "rouge"}">${fmtSigne(totalGagne + totalPerdu)}</div><div class="lib">Résultat réalisé total</div></div>
-      <div class="stat"><div class="val num">${nbGagnes} / ${nbGagnes + nbPerdus}</div><div class="lib">Taux de réussite (à lire avec la rentabilité)</div></div>
-    </div>
-    <div class="panneau"><h3>Rentabilité par thème et source</h3>
-      <div class="defilement-x"><table class="tableau">
-        <thead><tr><th>Axe</th><th>Misé</th><th>Résultat réalisé</th><th>Rendement</th></tr></thead>
-        <tbody>
-          <tr><td>Politique</td><td class="num">500</td><td class="num vert">+740</td><td class="num vert">+148 %</td></tr>
-          <tr><td>Espace</td><td class="num">250</td><td class="num vert">+427</td><td class="num vert">+171 %</td></tr>
-          <tr><td>Finance</td><td class="num">300</td><td class="num rouge">-300</td><td class="num rouge">-100 %</td></tr>
-          <tr><td>Polymarket</td><td class="num">800</td><td class="num vert">+440</td><td class="num vert">+55 %</td></tr>
-          <tr><td>Manifold</td><td class="num">250</td><td class="num vert">+427</td><td class="num vert">+171 %</td></tr>
-        </tbody>
-      </table></div>
-      <p class="tres-muet">Démonstration Phase A : ces agrégats seront calculés sur les règlements réels.</p>
-    </div>`;
+  return `<h1>Résultats</h1>` + etatVide("⏳", "Aucun résultat réel disponible",
+    "Les gains et remboursements apparaîtront ici après la résolution de vos positions réelles.");
 }
 
 
@@ -3525,7 +2910,7 @@ function pageFavoris({ query }) {
 
 /* ================= js/pages/parametres.js ================= */
 // Paramètres (9.10) : deux niveaux, recherche de réglage, impacts hausse/baisse,
-// portée du changement, restauration. En Phase A les valeurs sont affichées mais
+// portée du changement et restauration.
 // non persistées (le registre serveur versionné arrive en Phase C).
 const CATEGORIES = ["Économie", "Exécution", "Découverte", "Fraîcheur", "Notifications", "Interface"];
 
@@ -3623,7 +3008,7 @@ function pageParametres({ query }) {
     <p class="tres-muet">Registre versionné : chaque modification enregistrera date, auteur, ancienne valeur, avec prévisualisation
       d'impact avant sauvegarde et confirmation pour les réglages sensibles (par exemple : changer la valeur nominale n'affecte que les
       nouveaux lots ; les lots ouverts conservent leur valeur historique jusqu'à vente ou résolution). Les valeurs économiques actives
-      sont toujours relues côté serveur. Phase A : valeurs de démonstration, non persistées.</p>`;
+      sont toujours relues côté serveur. Les valeurs affichées sont les limites actuellement appliquées par Marchés.</p>`;
 
   return `
     <h1>Paramètres</h1>
@@ -3666,234 +3051,27 @@ function pageNotifications() {
 
 
 /* ================= js/pages/stats.js ================= */
-// Page Statistiques (sous Portefeuille).
-//
-// Règle imposée par l'utilisateur : NE JAMAIS présenter le solde global d'Éclats
-// comme une performance. Le solde bouge avec les autres applications de
-// l'écosystème. Ici, tout est scopé à Marchés : gains/pertes, résultat, ROI
-// se calculent uniquement à partir de l'activité de trading de cette appli.
-//
-// Phase A : les valeurs calculables le sont réellement à partir des fixtures ;
-// les stats qui exigeraient un historique riche (calibration, calendrier,
-// séries) sont marquées « démonstration » et seront branchées en Phase C/D.
-function tuile(val, lib, classe = "") {
-  return `<div class="stat"><div class="val num ${classe}">${val}</div><div class="lib">${echap(lib)}</div></div>`;
-}
-function demoTag() {
-  return `<span class="pastille pastille-off" title="Sera calculé sur l'historique réel en Phase C/D">démonstration</span>`;
-}
-
-const TITRES_VUE = {
-  ensemble: "Vue d'ensemble",
-  precision: "Précision de vos pronostics",
-  rentabilite: "Rentabilité",
-  comportement: "Comportement et risque",
-  records: "Records et séries"
-};
-
-function pageStats(route = {}) {
-  const vue = (route.query && route.query.vue) || "ensemble";
-  if (etat.demo.chargement) {
-    return `<h1>Statistiques</h1>${Array(3).fill('<div class="panneau skeleton" style="height:120px; margin-top:14px"></div>').join("")}`;
+function pageStats() {
+  if (!etat.compteConnecte) {
+    return `<h1>Statistiques</h1>` + etatVide("🔐", "Connectez votre portefeuille Éclats",
+      "Les statistiques sont calculées uniquement à partir de vos transactions réelles.");
   }
-
-  const gagnes = etat.claims.filter((c) => c.type === "GAIN");
-  const rembs = etat.claims.filter((c) => c.type === "REMBOURSEMENT");
-  const perdus = etat.defaites;
-  const positions = etat.positions;
-
-  // ---- Résultat de trading (cette appli uniquement) ----
-  const gainsNet = gagnes.reduce((s, c) => s + (c.montant - c.mise), 0);
-  const pertesNet = perdus.reduce((s, d) => s + d.perte, 0); // négatif
-  const pnlRealise = gainsNet + pertesNet;
-  const pnlLatent = positions.reduce((s, p) => s + (plLatent(p) || 0), 0);
-  const pnlTotal = pnlRealise + pnlLatent;
-  const misesResolues = gagnes.reduce((s, c) => s + c.mise, 0) + perdus.reduce((s, d) => s + d.mise, 0);
-  const roi = misesResolues > 0 ? (pnlRealise / misesResolues) * 100 : 0;
-
-  const gainsEncaisses = gagnes.reduce((s, c) => s + c.montant, 0);
-  const remboursements = rembs.reduce((s, c) => s + c.montant, 0);
-  const pertesSeches = perdus.reduce((s, d) => s + d.mise, 0);
-
-  // Courbe de résultat réalisé cumulé (scopée appli)
-  const evts = [
-    ...gagnes.map((c) => ({ t: new Date(c.resoluAt).getTime(), d: c.montant - c.mise })),
-    ...perdus.map((d) => ({ t: new Date(d.resoluAt).getTime(), d: d.perte }))
-  ].sort((a, b) => a.t - b.t);
-  let cum = 0;
-  const equity = [{ t: (evts[0]?.t || Date.now()) - 86400000, p: 0 }];
-  evts.forEach((e) => { cum += e.d; equity.push({ t: e.t, p: Math.round(cum) }); });
-
-  // ---- Précision ----
-  const nbG = gagnes.length, nbP = perdus.length;
-  const winRate = (nbG + nbP) > 0 ? (nbG / (nbG + nbP)) * 100 : 0;
-
-  // ---- Records ----
-  const meilleur = gagnes.map((c) => ({ t: c.titre, v: c.montant - c.mise, pct: ((c.montant - c.mise) / c.mise) * 100 }))
-    .sort((a, b) => b.v - a.v)[0];
-  const pire = perdus.map((d) => ({ t: d.titre, v: d.perte, pct: -100 })).sort((a, b) => a.v - b.v)[0];
-
-  // ---- Rentabilité par source et par thème (réel) ----
-  const rentabilite = (keyFn) => {
-    const map = new Map();
-    const ajoute = (k, mise, pnl) => {
-      const e = map.get(k) || { mise: 0, pnl: 0 };
-      e.mise += mise; e.pnl += pnl; map.set(k, e);
-    };
-    gagnes.forEach((c) => ajoute(keyFn(c), c.mise, c.montant - c.mise));
-    perdus.forEach((d) => ajoute(keyFn(d), d.mise, d.perte));
-    return [...map.entries()].filter(([, e]) => e.mise > 0)
-      .map(([axe, e]) => ({ axe, mise: e.mise, pnl: e.pnl, rdt: (e.pnl / e.mise) * 100 }))
-      .sort((a, b) => b.pnl - a.pnl);
-  };
-  const themeDe = (x) => marche(x.marcheId)?.theme || "Autre";
-  const sourceDe = (x) => x.source === "POLYMARKET" ? "Polymarket" : "Manifold";
-  const parSource = rentabilite(sourceDe);
-  const parTheme = rentabilite(themeDe);
-
-  const tableRentabilite = (titre, lignes) => `
-    <div class="panneau"><h3>${titre}</h3>
-      <div class="defilement-x"><table class="tableau">
-        <thead><tr><th>${echap(titre.replace("Rentabilité par ", ""))}</th><th>Misé</th><th>Résultat réalisé</th><th>Rendement</th></tr></thead>
-        <tbody>${lignes.map((l) => `<tr>
-          <td>${echap(l.axe)}</td>
-          <td class="num">${fmt(l.mise)}</td>
-          <td class="num ${l.pnl >= 0 ? "vert" : "rouge"}">${fmtSigne(l.pnl)}</td>
-          <td class="num ${l.rdt >= 0 ? "vert" : "rouge"}">${fmtSigne(l.rdt)} %</td>
-        </tr>`).join("")}</tbody>
-      </table></div>
-    </div>`;
-
-  // ---- Calibration (démonstration) ----
-  const calib = [
-    { plage: "0 à 20 %", predit: 12, reel: 15, n: 6 },
-    { plage: "20 à 40 %", predit: 31, reel: 27, n: 9 },
-    { plage: "40 à 60 %", predit: 50, reel: 52, n: 11 },
-    { plage: "60 à 80 %", predit: 69, reel: 74, n: 8 },
-    { plage: "80 à 100 %", predit: 88, reel: 83, n: 7 }
-  ];
-
-  // ---- Calendrier d'activité (démonstration déterministe) ----
-  let seed = 42;
-  const jour = () => { seed = (seed * 9301 + 49297) % 233280; return Math.floor((seed / 233280) * 5); };
-  const semaines = 16;
-  const heatmap = Array.from({ length: semaines * 7 }, jour);
-
-  // ---- Sections (une par sous-menu) ----
-  const secEnsemble = `
-    <div class="rangee-titre"><h2>📈 Résultat de trading</h2></div>
-    <div class="panneau">
-      <div class="stats-grille">
-        ${tuile(fmtSigne(pnlRealise), "Résultat réalisé (appli)", pnlRealise >= 0 ? "vert" : "rouge")}
-        ${tuile(fmtSigne(Math.round(pnlLatent)), "Résultat latent (positions ouvertes)", pnlLatent >= 0 ? "vert" : "rouge")}
-        ${tuile(fmtSigne(Math.round(pnlTotal)), "Résultat total de l'appli", pnlTotal >= 0 ? "vert" : "rouge")}
-        ${tuile(fmtSigne(Math.round(roi)) + " %", "ROI réalisé (sur mises)", roi >= 0 ? "vert" : "rouge")}
-      </div>
-      <div style="margin-top:14px">${sparkline(equity, { w: 320, h: 60 })}
-        <div class="lib tres-muet">Résultat réalisé cumulé sur cette appli</div></div>
+  const marches = etat.ledger.filter((ligne) => String(ligne.source || "").startsWith("marches_"));
+  if (!marches.length) {
+    return `<h1>Statistiques</h1>` + etatVide("📊", "Pas encore de transaction Marchés",
+      "Cette page se remplira à partir de votre historique réel, sans donnée artificielle.");
+  }
+  const depense = -marches.filter((l) => l.montant < 0).reduce((s, l) => s + l.montant, 0);
+  const gagne = marches.filter((l) => l.montant > 0).reduce((s, l) => s + l.montant, 0);
+  const net = gagne - depense;
+  return `<h1>Statistiques</h1>
+    <div class="enjeu-entete">
+      <div class="bloc"><span class="lib muet">Transactions réelles</span><div class="val num">${marches.length}</div></div>
+      <div class="bloc"><span class="lib muet">Éclats engagés</span><div class="val num">${fmt(depense)}</div></div>
+      <div class="bloc"><span class="lib muet">Éclats reçus</span><div class="val num">${fmt(gagne)}</div></div>
+      <div class="bloc"><span class="lib muet">Flux net Marchés</span><div class="val num ${net >= 0 ? "vert" : "rouge"}">${fmtSigne(net)}</div></div>
     </div>
-    <div class="rangee-titre"><h2>◆ Éclats gagnés et perdus (appli)</h2></div>
-    <div class="panneau"><div class="stats-grille">
-      ${tuile(fmt(gainsEncaisses), "Gains encaissés", "vert")}
-      ${tuile(fmt(remboursements), "Remboursements")}
-      ${tuile(fmt(pertesSeches), "Pertes sèches", "rouge")}
-      ${tuile(fmtSigne(Math.round(gainsNet + pertesNet)), "Gain net de trading", (gainsNet + pertesNet) >= 0 ? "vert" : "rouge")}
-    </div></div>`;
-
-  const secPrecision = `
-    <div class="panneau">
-      <div class="stats-grille">
-        ${tuile(fmt(winRate) + " %", `Taux de réussite (${nbG}/${nbG + nbP})`)}
-        ${tuile("0,182 " + demoTag(), "Score de Brier (plus bas = mieux)")}
-        ${tuile("+4,1 pts " + demoTag(), "Edge moyen vs résolution")}
-        ${tuile("+2,3 % " + demoTag(), "Performance vs le marché")}
-      </div>
-      <h3 style="margin-top:16px">Courbe de calibration ${demoTag()}</h3>
-      <p class="tres-muet">Quand vous pariez à X %, gagnez-vous vraiment X % du temps ? Barre pleine = votre prédiction, barre claire = résultat réel.</p>
-      <div class="calib">
-        ${calib.map((c) => `<div class="calib-ligne">
-          <span class="calib-plage">${c.plage}</span>
-          <div class="calib-barres">
-            <div class="calib-barre predit" style="width:${c.predit}%"><span>${c.predit}%</span></div>
-            <div class="calib-barre reel" style="width:${c.reel}%"><span>${c.reel}%</span></div>
-          </div>
-          <span class="tres-muet">${c.n} paris</span>
-        </div>`).join("")}
-      </div>
-    </div>`;
-
-  const secRentabilite = `
-    ${tableRentabilite("Rentabilité par source", parSource)}
-    ${tableRentabilite("Rentabilité par thème", parTheme)}
-    <div class="panneau"><h3>Rentabilité par horizon et par cote ${demoTag()}</h3>
-      <div class="defilement-x"><table class="tableau">
-        <thead><tr><th>Découpage</th><th>Misé</th><th>Résultat</th><th>Rendement</th></tr></thead>
-        <tbody>
-          <tr><td>Court terme (&lt; 24 h)</td><td class="num">450</td><td class="num vert">+312</td><td class="num vert">+69 %</td></tr>
-          <tr><td>Moyen terme (&lt; 30 j)</td><td class="num">600</td><td class="num vert">+188</td><td class="num vert">+31 %</td></tr>
-          <tr><td>Long terme</td><td class="num">300</td><td class="num rouge">-95</td><td class="num rouge">-32 %</td></tr>
-          <tr><td>Favoris (proba ≥ 80 %)</td><td class="num">500</td><td class="num vert">+120</td><td class="num vert">+24 %</td></tr>
-          <tr><td>Outsiders (proba ≤ 20 %)</td><td class="num">200</td><td class="num vert">+340</td><td class="num vert">+170 %</td></tr>
-          <tr><td>Paris OUI</td><td class="num">700</td><td class="num vert">+410</td><td class="num vert">+59 %</td></tr>
-          <tr><td>Paris NON</td><td class="num">350</td><td class="num rouge">-5</td><td class="num rouge">-1 %</td></tr>
-        </tbody>
-      </table></div>
-    </div>`;
-
-  const secRecords = `
-    <div class="stats-grille">
-      ${tuile("+" + fmt(meilleur?.v || 0), "Meilleur gain net", "vert")}
-      ${tuile(fmt(pire?.v || 0), "Pire perte", "rouge")}
-      ${tuile("+" + fmt(Math.round(meilleur?.pct || 0)) + " %", "Meilleur rendement", "vert")}
-      ${tuile("2 j 4 h " + demoTag(), "Résolution la plus rapide")}
-    </div>
-    <div class="panneau" style="margin-top:12px">
-      <p class="muet">🥇 Meilleur trade : <strong>${echap(meilleur?.t || "?")}</strong> (${fmtSigne(meilleur?.v || 0)} Éclats)</p>
-      <p class="muet">💔 Pire trade : <strong>${echap(pire?.t || "?")}</strong> (${fmtSigne(pire?.v || 0)} Éclats)</p>
-    </div>
-    <div class="rangee-titre"><h2>🔥 Séries ${demoTag()}</h2></div>
-    <div class="stats-grille">
-      ${tuile("2 gains", "Série en cours", "vert")}
-      ${tuile("4 gains", "Plus longue série de gains", "vert")}
-      ${tuile("2 pertes", "Plus longue série de pertes", "rouge")}
-    </div>`;
-
-  const secComportement = `
-    <div class="panneau"><div class="stats-grille">
-      ${tuile(positions.length + nbG + nbP + rembs.length, "Paris pris au total")}
-      ${tuile(positions.length, "Positions ouvertes")}
-      ${tuile(fmt(misesResolues / Math.max(1, nbG + nbP)), "Mise moyenne")}
-      ${tuile("38 % " + demoTag(), "Revendus avant résolution")}
-    </div>
-    <h3 style="margin-top:16px">Calendrier d'activité ${demoTag()}</h3>
-    <div class="heatmap">
-      ${heatmap.map((n) => `<span class="hm-case hm-${n}"></span>`).join("")}
-    </div>
-    <div class="hm-legende tres-muet">Moins <span class="hm-case hm-0"></span><span class="hm-case hm-1"></span><span class="hm-case hm-2"></span><span class="hm-case hm-3"></span><span class="hm-case hm-4"></span> Plus</div>
-    </div>
-    <div class="rangee-titre"><h2>🛡️ Discipline et risque</h2></div>
-    <div class="panneau"><div class="stats-grille">
-      ${tuile(fmt(positions.reduce((s, p) => s + p.montantExpose, 0)), "Exposition ouverte")}
-      ${tuile(fmt(Math.round(Math.max(...positions.map((p) => p.montantExpose), 0) / Math.max(1, positions.reduce((s, p) => s + p.montantExpose, 0)) * 100)) + " %", "Concentration (plus gros pari)")}
-      ${tuile(parTheme.length + " thèmes", "Diversification")}
-      ${tuile("Respectée " + demoTag(), "Limite d'exposition par marché")}
-    </div></div>`;
-
-  const sections = {
-    ensemble: secEnsemble,
-    precision: secPrecision,
-    rentabilite: secRentabilite,
-    comportement: secComportement,
-    records: secRecords
-  };
-
-  return `
-    <h1>Statistiques · ${echap(TITRES_VUE[vue] || TITRES_VUE.ensemble)}</h1>
-    <p class="muet" style="margin-top:-6px">Ces statistiques ne concernent que votre activité sur Marchés.
-      Elles n'incluent jamais votre solde global d'Éclats, qui dépend aussi des autres applications de l'écosystème.</p>
-    ${sections[vue] || sections.ensemble}
-    <p class="tres-muet" style="margin-top:20px">Les blocs marqués « démonstration » seront calculés sur votre historique réel dès que le trading sera branché (Phases C et D).</p>
-  `;
+    <p class="tres-muet">Calculé exclusivement depuis le registre commun des Éclats.</p>`;
 }
 
 
@@ -3975,7 +3153,9 @@ function pageSucces() {
 
 
 /* ================= js/app.js ================= */
-// Bootstrap du prototype Marchés (Phase A).
+// Bootstrap de Marchés.
+
+
 
 
 // Architecture en 3 piliers. La sous-navigation dépend du pilier actif.
@@ -4045,13 +3225,18 @@ const rendre = demarrerRouteur(contenu, (r) => {
 // ---------- En-tête, badges, bandeaux ----------
 
 function majEntete() {
-  document.getElementById("solde-valeur").textContent = `◇ ${fmt(etat.solde)}`;
+  document.getElementById("solde-valeur").textContent = etat.chargementCompte
+    ? "◇ …"
+    : etat.compteConnecte && etat.solde != null ? `◇ ${fmt(etat.solde)}` : "◇ Connexion";
+  const boutonSession = document.getElementById("bouton-session");
+  boutonSession.textContent = etat.compteConnecte ? "Déconnexion" : "Connexion";
+  boutonSession.dataset.action = etat.compteConnecte ? "deconnexion" : "ouvrir-connexion";
   const claims = totalARecuperer();
   const elClaims = document.getElementById("solde-claims");
   elClaims.hidden = claims <= 0;
   if (claims > 0) elClaims.textContent = `+ ${fmt(claims)} à récupérer`;
 
-  const nonVues = notificationsNonVues().length;
+  const nonVues = notificationsNonVues();
   const badgeN = document.getElementById("badge-notifs");
   badgeN.hidden = nonVues === 0;
   badgeN.textContent = nonVues;
@@ -4076,15 +3261,16 @@ function majEntete() {
     tr.innerHTML = `◷ <span>Cache hors ligne</span>`;
   } else {
     tr.classList.add("off");
-    tr.innerHTML = `⚠ <span>Mode démonstration</span>`;
+    tr.innerHTML = `⚠ <span>Données indisponibles</span>`;
   }
 
   const bandeaux = [];
   if (etat.modeDonnees === "cache") {
     bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Les API sont injoignables. Le dernier catalogue réel enregistré est affiché.</div>`);
-  } else if (etat.modeDonnees === "demo") {
-    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Les API et le cache réel sont indisponibles. Les marchés de démonstration sont affichés explicitement.</div>`);
+  } else if (etat.modeDonnees === "aucune") {
+    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Aucun catalogue réel n’est disponible pour le moment.</div>`);
   }
+  if (etat.erreurCompte) bandeaux.push(`<div class="bandeau bandeau-panne">Portefeuille Éclats indisponible : ${etat.erreurCompte}</div>`);
   if (etat.sources.polymarket.etat !== "ok") bandeaux.push(`<div class="bandeau bandeau-panne">📡 ${etat.sources.polymarket.libelle} · les marchés Polymarket déjà connus restent consultables en lecture seule.</div>`);
   if (etat.sources.manifold.etat !== "ok") bandeaux.push(`<div class="bandeau bandeau-panne">📡 ${etat.sources.manifold.libelle} · les marchés Manifold déjà connus restent consultables en lecture seule.</div>`);
   document.getElementById("bandeaux").innerHTML = bandeaux.join("");
@@ -4225,8 +3411,15 @@ document.body.addEventListener("click", async (e) => {
     act.textContent = "✓ Notification de test envoyée au centre interne";
   }
   if (a === "exporter-donnees") {
-    telechargerExportEclatsMarches(etat);
+    telechargerExportEclatsMarches(etat, { userId: etat.compteUtilisateur?.id || "non-connecte" });
     act.textContent = "✓ Export téléchargé";
+  }
+  if (a === "ouvrir-connexion") document.getElementById("dialogue-connexion").showModal();
+  if (a === "fermer-connexion") document.getElementById("dialogue-connexion").close();
+  if (a === "deconnexion") {
+    deconnexion();
+    await chargerCompteReel();
+    rendre();
   }
 });
 
@@ -4265,17 +3458,21 @@ function ouvrirFeuille(html) {
 }
 voile.addEventListener("click", () => { feuille.hidden = true; voile.hidden = true; });
 
-// ---------- Barre démo ----------
-
-const barreDemo = document.getElementById("barre-demo");
-document.getElementById("demo-toggle").addEventListener("click", () => barreDemo.classList.toggle("ouverte"));
-barreDemo.addEventListener("change", (e) => {
-  const c = e.target.closest("[data-demo]");
-  if (c) { reglerDemo(c.dataset.demo, c.checked); rendre(); }
-});
-document.getElementById("demo-reset").addEventListener("click", () => {
-  barreDemo.querySelectorAll("[data-demo]").forEach((c) => { c.checked = false; reglerDemo(c.dataset.demo, false); });
-  rendre();
+document.getElementById("formulaire-connexion").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const erreur = document.getElementById("erreur-connexion");
+  erreur.hidden = true;
+  const donnees = new FormData(e.currentTarget);
+  try {
+    await connexion(donnees.get("email"), donnees.get("password"));
+    await chargerCompteReel();
+    document.getElementById("dialogue-connexion").close();
+    e.currentTarget.reset();
+    rendre();
+  } catch (cause) {
+    erreur.textContent = cause.message;
+    erreur.hidden = false;
+  }
 });
 
 // ---------- Comptes à rebours vivants ----------
@@ -4295,5 +3492,6 @@ if (false) {
 majEntete();
 rendre();
 chargerDonneesReelles().then(() => rendre()).catch(() => rendre());
+chargerCompteReel().then(() => rendre()).catch(() => rendre());
 
 </script>

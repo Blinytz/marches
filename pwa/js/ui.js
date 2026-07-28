@@ -28,7 +28,6 @@ export const prix = (p) => p == null ? "?" : nf2.format(p * etat.valeurNominale)
 export function fraicheur(m) {
   if (m.status !== "OPEN") return "";
   const s = m.fraicheurS ?? 0;
-  if (etat.demo.ws_deconnecte) return `<span class="pastille pastille-warn">Données retardées</span>`;
   if (m.donneesRetardees || s > 120) {
     const lib = s > 3600 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 60)} min`;
     return `<span class="pastille pastille-warn">Retardé · ${lib}</span>`;
@@ -75,7 +74,7 @@ export const badgeSource = (source) =>
   `<span class="badge-source ${source.toLowerCase()}">${source === "POLYMARKET" ? "Polymarket" : "Manifold"}</span>`;
 
 export function pastilleStatut(m) {
-  if (etat.demo["panne_" + m.source.toLowerCase()]) return `<span class="pastille pastille-no">Source indisponible</span>`;
+  if (etat.sources[m.source.toLowerCase()]?.etat !== "ok") return `<span class="pastille pastille-no">Source indisponible</span>`;
   switch (m.status) {
     case "OPEN": return m.tradable
       ? `<span class="pastille pastille-ok">Ouvert</span>`
@@ -111,7 +110,7 @@ export function htmlVariation(issue) {
   return `<span class="variation ${cls}">${fleche} ${nf2.format(Math.abs(d))} pts (24 h)</span>`;
 }
 
-// ------- Graphiques SVG maison (Phase A) -------
+// ------- Graphiques SVG -------
 
 export function sparkline(history, { w = 150, h = 34, depuis = null, ligne = null } = {}) {
   if (!history || history.length < 2) return `<span class="tres-muet">pas de données</span>`;
@@ -281,7 +280,7 @@ export function plLatent(pos) {
 }
 
 export function paiementPotentiel(pos) {
-  // Les lots des fixtures représentent les parts restantes après ventes partielles
+  // Les lots représentent les parts restantes après ventes partielles.
   return pos.lots.reduce((s, l) => s + l.parts * l.valeurNominale, 0);
 }
 

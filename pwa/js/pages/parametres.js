@@ -1,5 +1,5 @@
 // Paramètres (9.10) : deux niveaux, recherche de réglage, impacts hausse/baisse,
-// portée du changement, restauration. En Phase A les valeurs sont affichées mais
+// portée du changement et restauration.
 // non persistées (le registre serveur versionné arrive en Phase C).
 import { etat } from "../etat.js";
 import { echap, etatVide } from "../ui.js";
@@ -100,7 +100,7 @@ export function pageParametres({ query }) {
     <p class="tres-muet">Registre versionné : chaque modification enregistrera date, auteur, ancienne valeur, avec prévisualisation
       d'impact avant sauvegarde et confirmation pour les réglages sensibles (par exemple : changer la valeur nominale n'affecte que les
       nouveaux lots ; les lots ouverts conservent leur valeur historique jusqu'à vente ou résolution). Les valeurs économiques actives
-      sont toujours relues côté serveur. Phase A : valeurs de démonstration, non persistées.</p>`;
+      sont toujours relues côté serveur. Les valeurs affichées sont les limites actuellement appliquées par Marchés.</p>`;
 
   return `
     <h1>Paramètres</h1>

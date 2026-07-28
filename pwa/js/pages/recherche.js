@@ -2,7 +2,7 @@
 // doublons inter-sources jamais fusionnés (3.2).
 import { etat } from "../etat.js";
 import { carteMarche, skeletons, etatVide, echap } from "../ui.js";
-import { THEMES } from "../data/fixtures.js";
+import { THEMES } from "../config.js";
 
 const HORIZONS = [
   { cle: "1", lib: "< 1 h" }, { cle: "6", lib: "< 6 h" }, { cle: "24", lib: "< 24 h" },
@@ -33,8 +33,6 @@ function score(m) {
 
 export function filtrerMarches(q) {
   let liste = etat.marches.filter((m) => m.status === "OPEN" || q.statut === "tous");
-  if (etat.demo.panne_polymarket) liste = liste.filter((m) => m.source !== "POLYMARKET");
-  if (etat.demo.panne_manifold) liste = liste.filter((m) => m.source !== "MANIFOLD");
   if (q.q) {
     const t = q.q.toLowerCase();
     liste = liste.filter((m) => m.titleOriginal.toLowerCase().includes(t) ||
@@ -79,7 +77,7 @@ function lien(q, patch) {
 }
 
 export function pageRecherche({ query: q }) {
-  if (etat.demo.chargement || etat.chargementCatalogue) {
+  if (etat.chargementCatalogue) {
     return `<h1>Recherche</h1><div class="grille-cartes">${skeletons(9)}</div>`;
   }
 

@@ -1,9 +1,12 @@
-// Service worker minimal Phase A : cache réseau d'abord, repli cache.
-// La stratégie complète (offline, rattrapage à l'ouverture) arrive avec les données réelles.
+// Cache réseau d'abord, repli sur le dernier contenu réel disponible.
 const CACHE = "marches-reel-v2";
 
 self.addEventListener("install", (e) => self.skipWaiting());
-self.addEventListener("activate", (e) => e.waitUntil(clients.claim()));
+self.addEventListener("activate", (e) => e.waitUntil(
+  caches.keys()
+    .then((noms) => Promise.all(noms.filter((nom) => nom !== CACHE).map((nom) => caches.delete(nom))))
+    .then(() => clients.claim())
+));
 
 self.addEventListener("fetch", (e) => {
   if (e.request.method !== "GET") return;

@@ -11,22 +11,6 @@
 </head>
 <body>
 
-  <!-- Barre démo Phase A : bascule des états d'interface (section 11) -->
-  <aside id="barre-demo" class="repliee" aria-label="Contrôles de démonstration">
-    <button id="demo-toggle" title="Contrôles de démonstration du prototype">🧪 Démo</button>
-    <div id="demo-panneau">
-      <p class="demo-titre">Tests d'interface · états simulés</p>
-      <label><input type="checkbox" data-demo="panne_polymarket"> Panne Polymarket</label>
-      <label><input type="checkbox" data-demo="panne_manifold"> Panne Manifold</label>
-      <label><input type="checkbox" data-demo="ws_deconnecte"> WebSocket déconnecté</label>
-      <label><input type="checkbox" data-demo="chargement"> Skeletons de chargement</label>
-      <label><input type="checkbox" data-demo="solde_insuffisant"> Solde insuffisant (ticket)</label>
-      <label><input type="checkbox" data-demo="prix_modifie"> Prix modifié avant confirmation</label>
-      <label><input type="checkbox" data-demo="erreur_inconnue"> Erreur inconnue (fiche)</label>
-      <button id="demo-reset" class="btn btn-discret">Réinitialiser la démo</button>
-    </div>
-  </aside>
-
   <header id="entete">
     <a class="logo" href="#/accueil">✦ <span class="logo-texte">Marchés</span></a>
     <div id="recherche-globale">
@@ -41,6 +25,7 @@
         <span id="solde-valeur" class="solde">◇ …</span>
         <span id="solde-claims" class="solde-claims" hidden></span>
       </a>
+      <button id="bouton-session" class="btn btn-discret" data-action="ouvrir-connexion">Connexion</button>
     </div>
   </header>
 
@@ -71,6 +56,17 @@
 
   <div id="voile" hidden></div>
   <div id="feuille-basse" hidden></div>
+  <dialog id="dialogue-connexion">
+    <form id="formulaire-connexion">
+      <h2>Portefeuille Éclats</h2>
+      <p class="muet">Utilisez le même compte que dans les autres applications de l’écosystème.</p>
+      <label>Adresse e-mail<input class="champ" name="email" type="email" autocomplete="email" required></label>
+      <label>Mot de passe<input class="champ" name="password" type="password" autocomplete="current-password" required></label>
+      <p id="erreur-connexion" class="ticket-erreur" hidden></p>
+      <div class="actions"><button type="button" class="btn btn-discret" data-action="fermer-connexion">Annuler</button>
+        <button class="btn btn-principal" type="submit">Se connecter</button></div>
+    </form>
+  </dialog>
 
   <script type="module" src="js/app.js"></script>
 </body>

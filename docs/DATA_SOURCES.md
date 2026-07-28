@@ -47,8 +47,8 @@ Points observés au spike (21/07/2026) :
   jusqu'à 500 marchés Manifold, dont les 150 ouverts les plus actifs sont conservés.
 - Le dernier catalogue réel est mis en cache local pendant les indisponibilités réseau.
 - Les sources sont indépendantes : l'échec de l'une n'empêche pas l'affichage de l'autre.
-- Le catalogue réel ne contient pas de données financières Éclats. Les anciennes fixtures
-  nécessaires aux positions et résultats simulés sont conservées hors du catalogue public.
+- Le catalogue réel ne contient pas de données financières Éclats. Le portefeuille et le
+  registre sont lus séparément dans le projet Supabase commun à l'écosystème.
 - `pwa/js/api/market-detail.js` enrichit à la demande une fiche Polymarket avec `/book`,
   `/midpoint` et `/prices-history`, ou une fiche Manifold avec `/market/{id}`.
 - Un seul WebSocket est maintenu : celui de la fiche actuellement ouverte. Il est fermé au

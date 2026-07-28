@@ -22,7 +22,7 @@ export function creerExportEclatsMarches(etat, {
     owner: { userId },
     eclats: {
       balance: String(Number(etat.solde || 0)),
-      ledgerMode: "simulated",
+      ledgerMode: "shared-real",
       movements: mouvements
     },
     localState: {

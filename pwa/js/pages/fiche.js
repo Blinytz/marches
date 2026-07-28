@@ -1,12 +1,11 @@
 // Fiche événement/marché (9.4) + ticket de transaction (9.5).
-// Le ticket est une simulation locale : la version réelle passera par la prévisualisation
-// et l'exécution serveur (TRADING_ENGINE.md). États : achat, vente, confirmation, succès, erreur.
+// Les transactions sont confirmées par les RPC atomiques Supabase.
 //
 // Structure du ticket revue pour la clarté (retour utilisateur 22/07) :
 //  - on choisit d'abord un CAMP (OUI ou NON) via deux boutons de prix explicites ;
 //  - le mode Vendre n'apparaît que si une position existe, via un encart « Votre position »
 //    qui propose Renforcer et Vendre. Plus de double bascule OUI/NON + Acheter/Vendre.
-import { etat, marche } from "../etat.js";
+import { etat, marche, executerOrdre } from "../etat.js";
 import {
   echap, badgeSource, pastilleStatut, etoile, imgMarche, pct, fmt, fmtEclats, fmtSigne,
   htmlVariation, issuePrincipale, grapheDetaille, fraicheur, libelleEcheance,
@@ -30,7 +29,7 @@ function prixIndicatif(m, issueId, mode = "achat") {
   const issue = m.issues.find((i) => i.id === issueId);
   if (!issue || issue.prob == null) return null;
   // Chaque camp est coté à partir de SA probabilité, plus le spread (moitié de part
-  // et d'autre du prix). Le carnet des fixtures est illustratif et ne concerne que le
+  // et d'autre du prix). Le carnet public ne concerne que le
   // camp affiché, on ne s'en sert donc pas pour coter le camp opposé.
   const demiSpread = (m.source === "MANIFOLD" ? 0.01 : (m.spread ?? 0.02) / 2);
   const p = issue.prob;
@@ -93,7 +92,7 @@ function htmlTicket(m) {
       </div>
       <a class="btn btn-principal" href="#/enjeu">Voir ma position</a>
       <button class="btn btn-discret" data-ticket="reinit">Nouvelle transaction</button>
-      <p class="ticket-note">Simulation Phase A : aucun Éclat réel n'a bougé.</p>
+      <p class="ticket-note">Transaction confirmée dans le registre commun des Éclats.</p>
     </div>`;
   }
 
@@ -158,7 +157,7 @@ function htmlTicket(m) {
   // ---- Saisie : ACHAT ----
   const p = prixIndicatif(m, t.issueId, "achat");
   const prixU = p != null ? p * vn : null;
-  const soldeDispo = etat.demo.solde_insuffisant ? 12 : etat.solde;
+  const soldeDispo = etat.solde ?? 0;
   const montantOk = t.montant >= 10 && t.montant <= 10000;
   const soldeOk = t.montant <= soldeDispo;
   const parts = prixU ? t.montant / prixU : 0;
@@ -202,13 +201,15 @@ function htmlTicket(m) {
       <div><dt>Paiement potentiel</dt><dd class="num">${fmt(parts * vn)}</dd></div>
       <div><dt>Bénéfice potentiel</dt><dd class="num vert">+${fmt(Math.max(0, parts * vn - t.montant))}</dd></div>
     </div>
+    ${!etat.compteConnecte ? `<div class="ticket-erreur">Connectez votre portefeuille Éclats avant de miser.</div>` : ""}
+    ${ticket.erreur ? `<div class="ticket-erreur">${echap(ticket.erreur)}</div>` : ""}
     ${!montantOk ? `<div class="ticket-erreur">Mise entre 10 et 10 000 Éclats (réglages Économie).</div>` : ""}
     ${!soldeOk ? `<div class="ticket-erreur">Solde insuffisant : ${fmtEclats(soldeDispo)} disponibles.
       <a href="#/portefeuille" style="text-decoration:underline">Voir le portefeuille</a></div>` : ""}
     ${profondeurInsuffisante ? `<div class="ticket-avert">⚠ Profondeur du carnet insuffisante pour ce montant :
       seuls ${fmtEclats(25)} sont exécutables. L'ordre serait partiellement exécuté (réglage : exécutions partielles autorisées).</div>` : ""}
     <p class="ticket-note">Le prix affiché est une estimation : la confirmation utilisera le prix revérifié côté serveur.</p>
-    <button class="btn btn-principal" data-ticket="previsualiser" ${montantOk && soldeOk && prixU != null ? "" : "disabled"}>
+    <button class="btn btn-principal" data-ticket="previsualiser" ${etat.compteConnecte && montantOk && soldeOk && prixU != null ? "" : "disabled"}>
       Acheter ${echap(issue.label)} · ${fmtEclats(t.montant)}
     </button>
   </div>`;
@@ -247,13 +248,7 @@ export function pageFiche({ params, query }) {
   const m = marche(params[0]);
   if (!m) return etatVide("🕳️", "Marché introuvable", "", `<a class="btn" href="#/accueil">Retour à l'accueil</a>`);
 
-  if (etat.demo.erreur_inconnue) {
-    return etatVide("💥", "Une erreur inattendue est survenue",
-      "Nos journaux ont enregistré le problème. Réessayez, et si l'erreur persiste, transmettez l'identifiant ci-dessous.",
-      `<p class="id-support">support: EM-${m.id}-4F7A2C</p><a class="btn" href="#/accueil">Retour</a>`);
-  }
-
-  const panne = etat.demo["panne_" + m.source.toLowerCase()];
+  const panne = etat.sources[m.source.toLowerCase()]?.etat !== "ok";
   if (query.t) ouvrirTicket(m.id, query.issue, query.mode || "achat");
 
   const ip = issuePrincipale(m);
@@ -365,7 +360,7 @@ export function accrocherTicket(rerendre) {
     const sel = e.target.closest("[data-ticket=issue-select]");
     if (sel && ticket) { ticket.issueId = sel.value; rerendre(); }
   });
-  zone.addEventListener("click", (e) => {
+  zone.addEventListener("click", async (e) => {
     const b = e.target.closest("[data-ticket]");
     if (!b || !ticket) return;
     const type = b.dataset.ticket;
@@ -380,22 +375,31 @@ export function accrocherTicket(rerendre) {
     if (type === "reinit") { ouvrirTicket(ticket.marcheId, ticket.issueId, "achat"); rerendre(); }
     if (type === "previsualiser") {
       const p = prixIndicatif(m, ticket.issueId, ticket.mode);
-      const derive = etat.demo.prix_modifie ? 0.04 : (Math.random() - 0.5) * 0.006;
-      ticket.prixServeur = Math.min(0.99, Math.max(0.01, p + derive));
+      ticket.prixServeur = Math.min(0.99, Math.max(0.01, p));
       ticket.etape = "confirmation";
       rerendre();
     }
     if (type === "executer") {
-      const vn = etat.valeurNominale;
-      const estVente = ticket.mode === "vente";
-      const parts = estVente ? ticket.parts : ticket.montant / (ticket.prixServeur * vn);
-      ticket.recu = {
-        id: "tx-demo-" + Math.random().toString(36).slice(2, 8),
-        montant: estVente ? parts * ticket.prixServeur * vn : ticket.montant,
-        prix: ticket.prixServeur * vn,
-        parts
-      };
-      ticket.etape = "succes";
+      try {
+        const resultat = await executerOrdre({
+          marche: m,
+          issueId: ticket.issueId,
+          mode: ticket.mode,
+          montant: ticket.montant,
+          parts: ticket.parts,
+          idempotencyKey: `marches:${crypto.randomUUID()}`
+        });
+        ticket.recu = {
+          id: resultat.id,
+          montant: Number(resultat.montant),
+          prix: Number(resultat.prix),
+          parts: Number(resultat.parts)
+        };
+        ticket.etape = "succes";
+      } catch (erreur) {
+        ticket.erreur = erreur.message;
+        ticket.etape = "saisie";
+      }
       rerendre();
     }
   });

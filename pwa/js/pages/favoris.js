@@ -1,7 +1,7 @@
 // Ma liste (9.9) : favoris, thèmes et régions suivis, filtres enregistrés, masqués.
 import { etat } from "../etat.js";
 import { carteMarche, etatVide, echap } from "../ui.js";
-import { THEMES, REGIONS } from "../data/fixtures.js";
+import { THEMES, REGIONS } from "../config.js";
 
 const ONGLETS_FAVORIS = [
   { cle: "evenements", lib: "Événements favoris" },
