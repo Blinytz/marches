@@ -53,3 +53,14 @@ test("conserve Authorization pour l'ancienne clé service_role JWT", async () =>
     globalThis.fetch = fetchOriginal;
   }
 });
+
+test("borne la probabilité Polymarket précédente entre zéro et un", async () => {
+  const poly = await lire("polymarket-event.json");
+  poly.markets[0].outcomePrices = "[\"0\", \"1\"]";
+  poly.markets[0].oneDayPriceChange = 0.003;
+
+  const catalogue = preparerCatalogue([poly], [], new Date("2026-07-28T08:00:00Z"));
+  const issue = catalogue.outcomes.find((outcome) => outcome.external_id === "pm-1654956");
+
+  assert.equal(issue.previous_24h, 0);
+});

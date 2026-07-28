@@ -71,7 +71,7 @@ function normaliserMarchePolymarket(marche) {
     label: String(label).toUpperCase() === "YES" ? "OUI" : String(label).toUpperCase() === "NO" ? "NON" : String(label),
     prob: Number.isFinite(Number(prix[index])) ? Number(prix[index]) : null,
     prev24h: index === 0 && Number.isFinite(Number(marche.oneDayPriceChange))
-      ? Number(prix[index]) - Number(marche.oneDayPriceChange)
+      ? Math.min(1, Math.max(0, Number(prix[index]) - Number(marche.oneDayPriceChange)))
       : null,
     history: [],
     tokenId: tokens[index] ? String(tokens[index]) : null
