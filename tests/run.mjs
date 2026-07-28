@@ -14,6 +14,8 @@ const app = read("pwa/js/app.js");
 const index = read("pwa/index.html");
 const portfolio = read("pwa/js/pages/portefeuille.js");
 const stats = read("pwa/js/pages/stats.js");
+const migrationCatalogue = read("sql/001_catalogue_reel.sql");
+const workflowSync = read(".github/workflows/sync-catalogue.yml");
 const pagesDir = new URL("pwa/js/pages/", root);
 const pageText = readdirSync(pagesDir)
   .filter((name) => name.endsWith(".js"))
@@ -29,12 +31,22 @@ test("l'historique relie chaque événement à son marché", portfolio.includes(
 test("le registre affiche le contexte de chaque mouvement", portfolio.includes("l.application") && portfolio.includes("l.marcheId"));
 test("les statistiques proposent des sous-menus", app.includes('href: "#/stats?vue=precision"') && app.includes('href: "#/stats?vue=records"') && app.includes('href: "#/stats?vue=rentabilite"') && app.includes('href: "#/stats?vue=comportement"'));
 test("la page Statistiques rend une sous-section selon la vue", stats.includes("route.query") && stats.includes("sections[vue]"));
+test("la migration du catalogue ne touche jamais au ledger", !/eclats_ledger/i.test(
+  migrationCatalogue.replace(/--.*$/gm, "")
+));
+test("les écritures catalogue restent réservées au service", migrationCatalogue.includes("to service_role") &&
+  migrationCatalogue.includes("revoke insert, update, delete, truncate") &&
+  !/grant\s+(?:all|insert|update|delete)[^;]*to\s+(?:anon|authenticated)/i.test(migrationCatalogue));
+test("le workflow ne contient aucun secret en clair", workflowSync.includes("secrets.SUPABASE_SERVICE_KEY") &&
+  !/sb_secret_|service_role\\s*[:=]\\s*['\"]/i.test(workflowSync));
 
 const jsFiles = [
   "pwa/js/app.js", "pwa/js/etat.js", "pwa/js/router.js", "pwa/js/ui.js",
+  "pwa/js/api/normalize.js", "pwa/js/api/market-data.js", "pwa/js/api/market-detail.js",
   ...readdirSync(pagesDir).filter((name) => name.endsWith(".js")).map((name) => `pwa/js/pages/${name}`),
   "pwa/js/integration/eclats-adapter.js",
   "pwa/js/integration/export-snapshot.js"
+  ,"scripts/sync_catalogue.mjs"
 ];
 for (const file of jsFiles) {
   const result = spawnSync(process.execPath, ["--check", file], { cwd: new URL(".", root), encoding: "utf8" });

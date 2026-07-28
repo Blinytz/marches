@@ -1,4 +1,4 @@
-<title>Marchés · prototype Phase A</title>
+<title>Marchés · données réelles</title>
 <style>
 /* Marchés · système visuel « vif, clair et ludique »
    Direction validée le 22/07 : thème clair moderne, coloré, avec des touches de jeu.
@@ -730,7 +730,7 @@ html { background: var(--bg); }
   <aside id="barre-demo" class="repliee" aria-label="Contrôles de démonstration">
     <button id="demo-toggle" title="Contrôles de démonstration du prototype">🧪 Démo</button>
     <div id="demo-panneau">
-      <p class="demo-titre">Prototype Phase A · états simulés</p>
+      <p class="demo-titre">Tests d'interface · états simulés</p>
       <label><input type="checkbox" data-demo="panne_polymarket"> Panne Polymarket</label>
       <label><input type="checkbox" data-demo="panne_manifold"> Panne Manifold</label>
       <label><input type="checkbox" data-demo="ws_deconnecte"> WebSocket déconnecté</label>
@@ -1403,9 +1403,513 @@ const ETAT_SOURCES_DEFAUT = {
 };
 
 
+/* ================= js/api/normalize.js ================= */
+// Normalisation pure des catalogues publics Polymarket et Manifold.
+// Aucun de ces adaptateurs ne place d'ordre sur les plateformes sources.
+
+const nombre = (valeur, defaut = 0) => {
+  const n = Number(valeur);
+  return Number.isFinite(n) ? n : defaut;
+};
+
+function tableau(valeur) {
+  if (Array.isArray(valeur)) return valeur;
+  if (typeof valeur !== "string") return [];
+  try {
+    const resultat = JSON.parse(valeur);
+    return Array.isArray(resultat) ? resultat : [];
+  } catch {
+    return [];
+  }
+}
+
+const identifiant = (valeur) => String(valeur ?? "")
+  .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+function themeDepuis(...valeurs) {
+  const texte = valeurs.flat().filter(Boolean).join(" ").toLowerCase();
+  const regles = [
+    ["Sport", /sport|football|soccer|nba|nfl|mlb|nhl|tennis|world cup|league/],
+    ["Politique", /politic|election|president|congress|government|minister|trump|senate|parliament/],
+    ["Économie", /econom|inflation|fed|interest rate|gdp|recession|jobs|unemployment/],
+    ["Finance", /bitcoin|crypto|ethereum|stock|market cap|price|dollar|euro|finance/],
+    ["Intelligence artificielle", /\bai\b|artificial intelligence|openai|anthropic|model/],
+    ["Climat et environnement", /climate|weather|temperature|warming|hurricane|environment/],
+    ["Espace", /space|spacex|starship|mars|moon|nasa/],
+    ["Cinéma", /movie|film|cinema|oscar|box office/],
+    ["Technologie", /technology|tech|software|apple|google|microsoft/]
+  ];
+  return regles.find(([, motif]) => motif.test(texte))?.[0] || "Actualité";
+}
+
+function regionsDepuis(...valeurs) {
+  const texte = valeurs.flat().filter(Boolean).join(" ").toLowerCase();
+  if (/france|french|paris|macron/.test(texte)) return ["France"];
+  if (/europe|eu\b|european|uk\b|britain|germany|italy|spain/.test(texte)) return ["Europe"];
+  return ["Monde"];
+}
+
+function statut({ ferme, resolu, annule }) {
+  if (annule) return "CANCELLED";
+  if (resolu) return "RESOLVED";
+  if (ferme) return "CLOSED";
+  return "OPEN";
+}
+
+function issueBinaire(probabilite, variation24h, prefixe = "") {
+  const p = Number.isFinite(probabilite) ? Math.min(1, Math.max(0, probabilite)) : null;
+  const avant = p == null || !Number.isFinite(variation24h)
+    ? null
+    : Math.min(1, Math.max(0, p - variation24h));
+  return [
+    { id: `${prefixe}oui`, label: "OUI", prob: p, prev24h: avant, history: [] },
+    { id: `${prefixe}non`, label: "NON", prob: p == null ? null : 1 - p, prev24h: avant == null ? null : 1 - avant, history: [] }
+  ];
+}
+
+function normaliserMarchePolymarket(marche) {
+  const libelles = tableau(marche.outcomes);
+  const prix = tableau(marche.outcomePrices);
+  const tokens = tableau(marche.clobTokenIds);
+  return libelles.map((label, index) => ({
+    id: String(label).toUpperCase() === "YES" ? "oui" : String(label).toUpperCase() === "NO" ? "non" : identifiant(label) || `issue-${index + 1}`,
+    label: String(label).toUpperCase() === "YES" ? "OUI" : String(label).toUpperCase() === "NO" ? "NON" : String(label),
+    prob: Number.isFinite(Number(prix[index])) ? Number(prix[index]) : null,
+    prev24h: index === 0 && Number.isFinite(Number(marche.oneDayPriceChange))
+      ? Number(prix[index]) - Number(marche.oneDayPriceChange)
+      : null,
+    history: [],
+    tokenId: tokens[index] ? String(tokens[index]) : null
+  }));
+}
+
+function normaliserEvenementPolymarket(evenement, maintenant = Date.now()) {
+  const marches = (evenement.markets || []).filter((m) => m && !m.archived);
+  if (!marches.length) return null;
+  const ouvert = marches.some((m) => m.active && !m.closed);
+  const multi = marches.length > 1;
+  let issues;
+  if (multi) {
+    issues = marches.map((m, index) => {
+      const issuesMarche = normaliserMarchePolymarket(m);
+      const oui = issuesMarche.find((i) => i.id === "oui") || issuesMarche[0];
+      return {
+        ...oui,
+        id: `pm-${m.id || index + 1}`,
+        label: m.groupItemTitle || m.question || `Issue ${index + 1}`,
+        marketId: String(m.id || ""),
+        conditionId: m.conditionId || null
+      };
+    }).filter((i) => i.prob != null);
+  } else {
+    issues = normaliserMarchePolymarket(marches[0]);
+  }
+  if (!issues.length) return null;
+  const principal = marches[0];
+  const ferme = !ouvert || Boolean(evenement.closed);
+  const resolu = ferme && marches.every((m) => m.closed && tableau(m.outcomePrices).some((p) => Number(p) === 1));
+  const tags = (evenement.tags || []).map((t) => t.label || t.name).filter(Boolean);
+  const titre = evenement.title || principal.question;
+  const description = evenement.description || principal.description || "";
+  const etat = statut({ ferme, resolu, annule: false });
+  const sourceDate = Date.parse(evenement.updatedAt || principal.updatedAt || evenement.creationDate || "");
+
+  return {
+    id: `pm-${evenement.id || principal.id}`,
+    source: "POLYMARKET",
+    externalId: String(evenement.id || principal.id),
+    sourceUrl: `https://polymarket.com/event/${evenement.slug || principal.slug || evenement.id}`,
+    titleOriginal: titre,
+    marketType: multi ? "MULTIPLE" : "BINARY",
+    status: etat,
+    tradable: etat === "OPEN" && issues.every((i) => i.prob != null) && marches.some((m) => m.enableOrderBook !== false),
+    nonTradableReason: etat === "OPEN" ? "Prix ou carnet public indisponible." : "Marché fermé sur Polymarket.",
+    theme: themeDepuis(evenement.category, tags, titre),
+    regions: regionsDepuis(tags, titre, description),
+    imageUrl: evenement.image || evenement.icon || principal.image || principal.icon || null,
+    closeAt: evenement.endDate || principal.endDate || null,
+    expectedResolutionAt: evenement.endDate || principal.endDate || null,
+    resolutionTimeConfidence: "EXPECTED",
+    volume: nombre(evenement.volume, marches.reduce((s, m) => s + nombre(m.volume), 0)),
+    volume24h: nombre(evenement.volume24hr, marches.reduce((s, m) => s + nombre(m.volume24hr), 0)),
+    liquidity: nombre(evenement.liquidity, marches.reduce((s, m) => s + nombre(m.liquidity), 0)),
+    bettorCount: null,
+    resolutionSource: evenement.resolutionSource || principal.resolutionSource || "Règles publiées par Polymarket",
+    descriptionOriginal: description,
+    fraicheurS: Number.isFinite(sourceDate) ? Math.max(0, Math.round((maintenant - sourceDate) / 1000)) : 0,
+    spread: nombre(principal.spread, 0.02),
+    issues,
+    polymarketMarkets: marches.map((m) => ({
+      id: String(m.id || ""),
+      conditionId: m.conditionId || null,
+      tokenIds: tableau(m.clobTokenIds).map(String)
+    }))
+  };
+}
+
+function normaliserCataloguePolymarket(evenements, maintenant = Date.now()) {
+  return (Array.isArray(evenements) ? evenements : [])
+    .map((e) => normaliserEvenementPolymarket(e, maintenant))
+    .filter(Boolean);
+}
+
+function normaliserMarcheManifold(marche, maintenant = Date.now()) {
+  if (!marche?.id || !marche.question) return null;
+  const ferme = Boolean(marche.isResolved) || (marche.closeTime && marche.closeTime <= maintenant);
+  const annule = marche.isResolved && ["CANCEL", "MKT"].includes(marche.resolution);
+  const etat = statut({ ferme, resolu: Boolean(marche.isResolved) && !annule, annule });
+  const type = marche.outcomeType || "OTHER";
+  let issues;
+  if (type === "BINARY") {
+    issues = issueBinaire(nombre(marche.probability, NaN), nombre(marche.probChangeDay, NaN));
+  } else if (type === "MULTIPLE_CHOICE" && Array.isArray(marche.answers)) {
+    issues = marche.answers.filter((a) => !a.isOther).map((a, index) => ({
+      id: String(a.id || `reponse-${index + 1}`),
+      label: a.text || a.answer || `Réponse ${index + 1}`,
+      prob: Number.isFinite(Number(a.probability)) ? Number(a.probability) : null,
+      prev24h: null,
+      history: []
+    }));
+  } else {
+    issues = issueBinaire(nombre(marche.probability, NaN), nombre(marche.probChangeDay, NaN));
+  }
+  const tradableType = type === "BINARY" || type === "MULTIPLE_CHOICE";
+  const titre = marche.question;
+  const description = marche.textDescription || marche.description || "";
+  return {
+    id: `mf-${marche.id}`,
+    source: "MANIFOLD",
+    externalId: String(marche.id),
+    sourceUrl: marche.url || `https://manifold.markets/${marche.creatorUsername || "market"}/${marche.slug || marche.id}`,
+    titleOriginal: titre,
+    marketType: type === "BINARY" ? "BINARY" : type === "MULTIPLE_CHOICE" ? "MULTIPLE_CHOICE" : "OTHER",
+    sousType: tradableType ? null : type,
+    status: etat,
+    tradable: etat === "OPEN" && tradableType && issues.some((i) => i.prob != null),
+    nonTradableReason: tradableType ? (etat === "OPEN" ? "Probabilité publique indisponible." : "Marché fermé sur Manifold.") : `Format ${type} consultable, non pris en charge pour le trading.`,
+    sommeEgale1: Boolean(marche.shouldAnswersSumToOne),
+    theme: themeDepuis(marche.tags, titre, description),
+    regions: regionsDepuis(marche.tags, titre, description),
+    imageUrl: marche.coverImageUrl || marche.creatorAvatarUrl || null,
+    closeAt: marche.closeTime ? new Date(marche.closeTime).toISOString() : null,
+    expectedResolutionAt: marche.closeTime ? new Date(marche.closeTime).toISOString() : null,
+    resolutionTimeConfidence: "EXPECTED",
+    volume: nombre(marche.volume),
+    volume24h: nombre(marche.volume24Hours),
+    liquidity: nombre(marche.totalLiquidity),
+    bettorCount: nombre(marche.uniqueBettorCount, null),
+    createur: marche.creatorUsername || marche.creatorName || null,
+    resolutionSource: marche.resolutionSource || "Résolution publiée par le créateur Manifold",
+    descriptionOriginal: description,
+    fraicheurS: marche.lastUpdatedTime ? Math.max(0, Math.round((maintenant - marche.lastUpdatedTime) / 1000)) : 0,
+    spread: 0.02,
+    prixMiroir: true,
+    issues
+  };
+}
+
+function normaliserCatalogueManifold(marches, maintenant = Date.now()) {
+  return (Array.isArray(marches) ? marches : [])
+    .map((m) => normaliserMarcheManifold(m, maintenant))
+    .filter(Boolean);
+}
+
+
+/* ================= js/api/market-data.js ================= */
+const URL_POLYMARKET = "https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false&order=volume24hr&ascending=false";
+const URL_MANIFOLD = "https://api.manifold.markets/v0/markets?limit=500";
+const CLE_CACHE = "marches-catalogue-reel-v1";
+const DUREE_CACHE_MS = 15 * 60 * 1000;
+
+async function json(url, { delaiMs = 12000 } = {}) {
+  const controleur = new AbortController();
+  const minuterie = setTimeout(() => controleur.abort(), delaiMs);
+  try {
+    const reponse = await fetch(url, {
+      signal: controleur.signal,
+      headers: { Accept: "application/json" },
+      cache: "no-store"
+    });
+    if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
+    return await reponse.json();
+  } finally {
+    clearTimeout(minuterie);
+  }
+}
+
+async function chargerPolymarket() {
+  return normaliserCataloguePolymarket(await json(URL_POLYMARKET));
+}
+
+async function chargerManifold() {
+  const marches = await json(URL_MANIFOLD);
+  return normaliserCatalogueManifold(marches)
+    .filter((m) => m.status === "OPEN")
+    .sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0) || (b.volume || 0) - (a.volume || 0))
+    .slice(0, 150);
+}
+
+function lireCache() {
+  try {
+    const cache = JSON.parse(localStorage.getItem(CLE_CACHE));
+    if (!cache || !Array.isArray(cache.marches) || !cache.marches.length) return null;
+    return { ...cache, perime: Date.now() - cache.enregistreAt > DUREE_CACHE_MS };
+  } catch {
+    return null;
+  }
+}
+
+function sauverCache(marches) {
+  try {
+    localStorage.setItem(CLE_CACHE, JSON.stringify({ enregistreAt: Date.now(), marches }));
+  } catch {
+    // Un catalogue trop volumineux ne doit jamais empêcher l'application de fonctionner.
+  }
+}
+
+async function chargerCatalogueReel() {
+  const cache = lireCache();
+  const resultats = await Promise.allSettled([chargerPolymarket(), chargerManifold()]);
+  const [poly, manifold] = resultats;
+  const marches = [
+    ...(poly.status === "fulfilled" ? poly.value : []),
+    ...(manifold.status === "fulfilled" ? manifold.value : [])
+  ];
+  if (marches.length) sauverCache(marches);
+  return {
+    marches: marches.length ? marches : (cache?.marches || []),
+    origine: marches.length ? "reseau" : cache ? "cache" : "aucune",
+    cachePerime: !marches.length && Boolean(cache?.perime),
+    sources: {
+      polymarket: poly.status === "fulfilled"
+        ? { ok: true, count: poly.value.length }
+        : { ok: false, erreur: poly.reason?.message || "indisponible" },
+      manifold: manifold.status === "fulfilled"
+        ? { ok: true, count: manifold.value.length }
+        : { ok: false, erreur: manifold.reason?.message || "indisponible" }
+    }
+  };
+}
+
+
+/* ================= js/api/market-detail.js ================= */
+const CLOB = "https://clob.polymarket.com";
+const MANIFOLD = "https://api.manifold.markets/v0";
+
+async function lireJson(url, delaiMs = 10000) {
+  const controleur = new AbortController();
+  const minuterie = setTimeout(() => controleur.abort(), delaiMs);
+  try {
+    const reponse = await fetch(url, {
+      signal: controleur.signal,
+      headers: { Accept: "application/json" },
+      cache: "no-store"
+    });
+    if (!reponse.ok) throw new Error(`HTTP ${reponse.status}`);
+    return await reponse.json();
+  } finally {
+    clearTimeout(minuterie);
+  }
+}
+
+const lignesCarnet = (lignes) => (Array.isArray(lignes) ? lignes : [])
+  .map((ligne) => [Number(ligne.price ?? ligne[0]), Number(ligne.size ?? ligne[1])])
+  .filter(([prix, taille]) => Number.isFinite(prix) && Number.isFinite(taille));
+
+function appliquerComplementBinaire(marche, issueModifiee) {
+  if (marche.marketType !== "BINARY" || issueModifiee.prob == null) return;
+  const autre = marche.issues.find((i) => i.id !== issueModifiee.id);
+  if (autre) autre.prob = 1 - issueModifiee.prob;
+}
+
+async function enrichirPolymarket(marche, issueId) {
+  const issue = marche.issues.find((i) => i.id === issueId && i.tokenId)
+    || marche.issues.find((i) => i.tokenId);
+  if (!issue?.tokenId) throw new Error("Identifiant CLOB absent");
+  const token = encodeURIComponent(issue.tokenId);
+  const [carnetResultat, historiqueResultat, milieuResultat] = await Promise.allSettled([
+    lireJson(`${CLOB}/book?token_id=${token}`),
+    lireJson(`${CLOB}/prices-history?market=${token}&interval=max&fidelity=60`),
+    lireJson(`${CLOB}/midpoint?token_id=${token}`)
+  ]);
+
+  if (carnetResultat.status === "fulfilled") {
+    const brut = carnetResultat.value;
+    const bids = lignesCarnet(brut.bids).sort((a, b) => b[0] - a[0]).slice(0, 12);
+    const asks = lignesCarnet(brut.asks).sort((a, b) => a[0] - b[0]).slice(0, 12);
+    marche.carnet = { bids, asks, tokenId: issue.tokenId };
+    if (bids.length && asks.length) marche.spread = Math.max(0, asks[0][0] - bids[0][0]);
+    marche.profondeurFaible = bids.length + asks.length < 4;
+  }
+  if (historiqueResultat.status === "fulfilled") {
+    issue.history = (historiqueResultat.value.history || [])
+      .map((point) => ({ t: Number(point.t) * 1000, p: Number(point.p) }))
+      .filter((point) => Number.isFinite(point.t) && Number.isFinite(point.p));
+    if (issue.history.length) {
+      const cible = Date.now() - 24 * 3600e3;
+      issue.prev24h = issue.history.reduce((a, b) =>
+        Math.abs(b.t - cible) < Math.abs(a.t - cible) ? b : a).p;
+    }
+  }
+  if (milieuResultat.status === "fulfilled" && Number.isFinite(Number(milieuResultat.value.mid))) {
+    issue.prob = Number(milieuResultat.value.mid);
+    appliquerComplementBinaire(marche, issue);
+  }
+  marche.fraicheurS = 0;
+  marche.detailEtat = "ok";
+  return marche;
+}
+
+async function enrichirManifold(marche) {
+  const detail = await lireJson(`${MANIFOLD}/market/${encodeURIComponent(marche.externalId)}`);
+  const normalise = normaliserMarcheManifold(detail);
+  if (!normalise) throw new Error("Réponse Manifold invalide");
+  const historiques = new Map(marche.issues.map((i) => [i.id, i.history]));
+  Object.assign(marche, normalise);
+  marche.issues.forEach((issue) => { issue.history = historiques.get(issue.id) || issue.history || []; });
+  marche.detailEtat = "ok";
+  marche.fraicheurS = 0;
+  return marche;
+}
+
+async function enrichirMarche(marche, issueId) {
+  marche.detailEtat = "chargement";
+  try {
+    return marche.source === "POLYMARKET"
+      ? await enrichirPolymarket(marche, issueId)
+      : await enrichirManifold(marche);
+  } catch (erreur) {
+    marche.detailEtat = "erreur";
+    marche.detailErreur = erreur?.message || "Détail indisponible";
+    throw erreur;
+  }
+}
+
+let socketActif = null;
+let marcheSuivi = null;
+let minuterieReconnexion = null;
+
+function fermerSuivi() {
+  clearTimeout(minuterieReconnexion);
+  minuterieReconnexion = null;
+  const socket = socketActif;
+  socketActif = null;
+  marcheSuivi = null;
+  if (socket && socket.readyState < 2) socket.close();
+}
+
+function prixDepuisMessage(message) {
+  const valeur = message.price ?? message.mid ?? message.best_bid ?? message.last_trade_price;
+  const prix = Number(valeur);
+  return Number.isFinite(prix) ? prix : null;
+}
+
+function appliquerMessagePolymarket(marche, message) {
+  const messages = Array.isArray(message) ? message : [message];
+  let change = false;
+  for (const evenement of messages) {
+    if (evenement?.bids || evenement?.asks) {
+      const issue = marche.issues.find((i) => i.tokenId === String(evenement.asset_id));
+      if (issue) {
+        const bids = lignesCarnet(evenement.bids).sort((a, b) => b[0] - a[0]).slice(0, 12);
+        const asks = lignesCarnet(evenement.asks).sort((a, b) => a[0] - b[0]).slice(0, 12);
+        marche.carnet = { bids, asks, tokenId: issue.tokenId };
+        if (bids.length && asks.length) {
+          issue.prob = (bids[0][0] + asks[0][0]) / 2;
+          marche.spread = asks[0][0] - bids[0][0];
+          appliquerComplementBinaire(marche, issue);
+        }
+        change = true;
+      }
+    }
+    const changements = evenement?.price_changes || [evenement];
+    for (const changement of changements) {
+      const issue = marche.issues.find((i) => i.tokenId === String(changement?.asset_id));
+      const prix = prixDepuisMessage(changement || {});
+      if (issue && prix != null) {
+        issue.prob = prix;
+        appliquerComplementBinaire(marche, issue);
+        change = true;
+      }
+    }
+  }
+  return change;
+}
+
+function trouverContratManifold(message) {
+  const candidats = [message?.data, message?.contract, message?.data?.contract, message];
+  return candidats.find((x) => x && typeof x === "object" && x.id && Number.isFinite(Number(x.probability)));
+}
+
+function suivreTempsReel(marche, surMiseAJour) {
+  if (!marche || marche.status !== "OPEN") {
+    fermerSuivi();
+    return;
+  }
+  if (marcheSuivi === marche.id && socketActif) return;
+  fermerSuivi();
+  marcheSuivi = marche.id;
+  const identifiant = marche.id;
+  const url = marche.source === "POLYMARKET"
+    ? "wss://ws-subscriptions-clob.polymarket.com/ws/market"
+    : "wss://api.manifold.markets/ws";
+
+  const connecter = () => {
+    if (marcheSuivi !== identifiant) return;
+    const socket = new WebSocket(url);
+    socketActif = socket;
+    socket.onopen = () => {
+      if (marche.source === "POLYMARKET") {
+        const tokens = marche.issues.map((i) => i.tokenId).filter(Boolean);
+        if (tokens.length) socket.send(JSON.stringify({ assets_ids: tokens, type: "market" }));
+      } else {
+        socket.send(JSON.stringify({
+          type: "subscribe",
+          txid: Date.now(),
+          topics: [`contract/${marche.externalId}`]
+        }));
+      }
+    };
+    socket.onmessage = (evenement) => {
+      try {
+        const message = JSON.parse(evenement.data);
+        let change = false;
+        if (marche.source === "POLYMARKET") {
+          change = appliquerMessagePolymarket(marche, message);
+        } else {
+          const contrat = trouverContratManifold(message);
+          if (contrat?.id === marche.externalId) {
+            const oui = marche.issues.find((i) => i.id === "oui");
+            if (oui) {
+              oui.prob = Number(contrat.probability);
+              appliquerComplementBinaire(marche, oui);
+              change = true;
+            }
+          }
+        }
+        if (change) {
+          marche.fraicheurS = 0;
+          surMiseAJour?.();
+        }
+      } catch {
+        // Les messages de contrôle non JSON utile sont ignorés.
+      }
+    };
+    socket.onclose = () => {
+      if (socketActif === socket) socketActif = null;
+      if (marcheSuivi === identifiant) minuterieReconnexion = setTimeout(connecter, 3000);
+    };
+  };
+  connecter();
+}
+
+
 /* ================= js/etat.js ================= */
 // État global du prototype Phase A.
 // Tout est local (mémoire + localStorage) : aucune connexion réseau, aucune mutation financière.
+
+
 const CLE_STOCKAGE = "marches-proto";
 const CLE_STOCKAGE_HISTORIQUE = "eclats-marches-proto";
 
@@ -1446,6 +1950,10 @@ const etat = {
   notifsLues: new Set(memo.notifsLues || []),   // ouvertes individuellement (retire la pastille de la ligne)
   notifsVues: new Set(memo.notifsVues || []),   // simplement consultées (retire le badge de la cloche)
   theme: memo.theme || "sombre",
+  chargementCatalogue: true,
+  modeDonnees: "chargement",
+  catalogueActualiseAt: null,
+  enrichissementsEnCours: new Set(),
 
   // Bascules de la barre démo (états section 11)
   demo: {
@@ -1469,6 +1977,54 @@ function notifier() {
 function surChangement(fn) { etat.ecouteurs.add(fn); }
 
 function marche(id) { return etat.marches.find((m) => m.id === id); }
+
+async function chargerDetailMarche(id, issueId) {
+  const cible = marche(id);
+  if (!cible || cible.detailEtat === "ok" || etat.enrichissementsEnCours.has(id)) return false;
+  etat.enrichissementsEnCours.add(id);
+  try {
+    await enrichirMarche(cible, issueId);
+  } catch {
+    // La fiche conserve les données du catalogue et affiche l'état dégradé.
+  } finally {
+    etat.enrichissementsEnCours.delete(id);
+    notifier();
+  }
+  return true;
+}
+
+async function chargerDonneesReelles() {
+  etat.chargementCatalogue = true;
+  notifier();
+  const resultat = await chargerCatalogueReel();
+  const idsLocauxNecessaires = new Set([
+    ...etat.positions.map((p) => p.marcheId),
+    ...etat.claims.map((c) => c.marcheId),
+    ...etat.defaites.map((d) => d.marcheId)
+  ]);
+  const supportsSimulation = MARCHES.filter((m) => idsLocauxNecessaires.has(m.id));
+
+  if (resultat.marches.length) {
+    etat.marches = [...resultat.marches, ...supportsSimulation];
+    etat.modeDonnees = resultat.origine;
+    etat.catalogueActualiseAt = new Date().toISOString();
+  } else {
+    etat.marches = MARCHES;
+    etat.modeDonnees = "demo";
+  }
+
+  for (const source of ["polymarket", "manifold"]) {
+    const info = resultat.sources[source];
+    const nom = source === "polymarket" ? "Polymarket" : "Manifold";
+    etat.sources[source] = info.ok
+      ? { etat: "ok", libelle: `${nom} : ${info.count} marchés réels chargés` }
+      : { etat: "panne", libelle: `${nom} : API indisponible (${info.erreur})` };
+  }
+  etat.sources.websocket = { etat: "catalogue", depuisS: 0 };
+  etat.chargementCatalogue = false;
+  notifier();
+  return resultat;
+}
 
 function basculerFavori(id) {
   if (etat.favoris.has(id)) etat.favoris.delete(id);
@@ -1726,6 +2282,7 @@ function grapheDetaille(history, { h = 220, marqueurs = [], ligneEntree = null, 
 function boutonsOuiNon(m, taille = "") {
   if (!m.tradable || m.status !== "OPEN" || m.marketType !== "BINARY") return "";
   const oui = m.issues.find((i) => i.id === "oui"), non = m.issues.find((i) => i.id === "non");
+  if (!oui || !non) return "";
   return `<div class="boutons-oui-non ${taille}">
     <button class="btn-oui" data-action="ticket" data-marche="${m.id}" data-issue="oui">OUI ${oui.prob != null ? Math.round(oui.prob * 100) : "?"}</button>
     <button class="btn-non" data-action="ticket" data-marche="${m.id}" data-issue="non">NON ${non.prob != null ? Math.round(non.prob * 100) : "?"}</button>
@@ -1885,7 +2442,7 @@ const ouverts = () => etat.marches.filter((m) => m.status === "OPEN" &&
   !(etat.demo.panne_manifold && m.source === "MANIFOLD"));
 
 function pageAccueil() {
-  if (etat.demo.chargement) {
+  if (etat.demo.chargement || etat.chargementCatalogue) {
     return `<h1>Pour moi</h1><div class="rangee-cartes">${skeletons(4)}</div>
       <div class="rangee-titre"><h2 class="skeleton" style="width:220px">&nbsp;</h2></div>
       <div class="grille-cartes">${skeletons(6)}</div>`;
@@ -2060,7 +2617,7 @@ function lien(q, patch) {
 }
 
 function pageRecherche({ query: q }) {
-  if (etat.demo.chargement) {
+  if (etat.demo.chargement || etat.chargementCatalogue) {
     return `<h1>Recherche</h1><div class="grille-cartes">${skeletons(9)}</div>`;
   }
 
@@ -2338,6 +2895,9 @@ function htmlCarnet(m) {
         vente OUI à ${pct(Math.max(0.01, (issuePrincipale(m).prob ?? 0) - 0.01))}.
         Ce prix n'est jamais un ordre réel placé chez Manifold.</p></div>`;
   }
+  if (m.detailEtat === "chargement") {
+    return `<div class="panneau"><h3>Carnet d'ordres</h3><div class="skeleton" style="height:150px"></div></div>`;
+  }
   if (!m.carnet || (!m.carnet.bids.length && !m.carnet.asks.length)) {
     return `<div class="panneau"><h3>Carnet d'ordres</h3>${etatVide("📭", "Carnet vide", "Aucune liquidité affichable pour l'instant : les transactions sont suspendues.")}</div>`;
   }
@@ -2399,6 +2959,7 @@ function pageFiche({ params, query }) {
         ${fraicheur(m)}
         <span class="pastille">${libelleEcheance(m)}</span>
       </div>
+      ${m.detailEtat === "erreur" ? `<div class="bandeau bandeau-panne">Les données détaillées sont momentanément indisponibles. Le prix du catalogue reste affiché.</div>` : ""}
 
       <div class="graphique-conteneur panneau">
         ${grapheDetaille(ip.history, { plageH: Number(query.plage) || null })}
@@ -2443,7 +3004,9 @@ function pageFiche({ params, query }) {
       ${htmlCarnet(m)}
 
       <div class="panneau"><h3>Activité externe récente</h3>
-        <p class="tres-muet">Phase A : l'activité et les commentaires externes (lecture seule) seront branchés en Phase B.</p></div>
+        <p class="tres-muet">${m.source === "POLYMARKET"
+          ? "Carnet et prix suivis en lecture seule via le CLOB public pendant l'ouverture de cette fiche."
+          : "Probabilité publique suivie en lecture seule via Manifold pendant l'ouverture de cette fiche."}</p></div>
 
       ${memesTheme.length ? `<div class="rangee-titre"><h2>Dans le même thème</h2></div>
         <div class="carte liste-compacte">${memesTheme.map(ligneCompacte).join("")}</div>` : ""}
@@ -3413,6 +3976,8 @@ function pageSucces() {
 
 /* ================= js/app.js ================= */
 // Bootstrap du prototype Marchés (Phase A).
+
+
 // Architecture en 3 piliers. La sous-navigation dépend du pilier actif.
 const SOUS_NAV = {
   marches: [
@@ -3465,7 +4030,14 @@ enregistrer("succes", pageSucces);
 const contenu = document.getElementById("contenu");
 const rendre = demarrerRouteur(contenu, (r) => {
   majNavigation(r);
-  if (r.page === "marche") accrocherTicket(rendre);
+  if (r.page === "marche") {
+    accrocherTicket(rendre);
+    const cible = marche(r.params[0]);
+    chargerDetailMarche(r.params[0], r.query.issue).then((charge) => { if (charge) rendre(); });
+    suivreTempsReel(cible, () => rendre());
+  } else {
+    suivreTempsReel(null);
+  }
   // Consulter le centre de notifications éteint le badge de la cloche.
   if (r.page === "notifications") marquerToutesVues();
 });
@@ -3493,18 +4065,25 @@ function majEntete() {
   document.querySelectorAll('[data-badge^="resultats"]').forEach((el) => { el.hidden = claims <= 0; });
 
   const tr = document.getElementById("indicateur-tr");
-  if (etat.sources.websocket.etat === "connecte") {
+  if (etat.chargementCatalogue) {
+    tr.classList.add("off");
+    tr.innerHTML = `<span>Chargement des marchés…</span>`;
+  } else if (etat.modeDonnees === "reseau") {
     tr.classList.remove("off");
-    tr.innerHTML = `⚡ <span>En direct</span>`;
+    tr.innerHTML = `● <span>Données réelles</span>`;
+  } else if (etat.modeDonnees === "cache") {
+    tr.classList.add("off");
+    tr.innerHTML = `◷ <span>Cache hors ligne</span>`;
   } else {
     tr.classList.add("off");
-    tr.innerHTML = `⚠ <span>Reconnexion…</span>`;
+    tr.innerHTML = `⚠ <span>Mode démonstration</span>`;
   }
 
   const bandeaux = [];
-  if (etat.sources.websocket.etat !== "connecte") {
-    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Connexion temps réel interrompue depuis ${etat.sources.websocket.depuisS} s :
-      reconnexion automatique en cours, les prix affichés datent de la dernière synchronisation.</div>`);
+  if (etat.modeDonnees === "cache") {
+    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Les API sont injoignables. Le dernier catalogue réel enregistré est affiché.</div>`);
+  } else if (etat.modeDonnees === "demo") {
+    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Les API et le cache réel sont indisponibles. Les marchés de démonstration sont affichés explicitement.</div>`);
   }
   if (etat.sources.polymarket.etat !== "ok") bandeaux.push(`<div class="bandeau bandeau-panne">📡 ${etat.sources.polymarket.libelle} · les marchés Polymarket déjà connus restent consultables en lecture seule.</div>`);
   if (etat.sources.manifold.etat !== "ok") bandeaux.push(`<div class="bandeau bandeau-panne">📡 ${etat.sources.manifold.libelle} · les marchés Manifold déjà connus restent consultables en lecture seule.</div>`);
@@ -3715,5 +4294,6 @@ if (false) {
 
 majEntete();
 rendre();
+chargerDonneesReelles().then(() => rendre()).catch(() => rendre());
 
 </script>

@@ -22,6 +22,9 @@ const lire = (...p) => readFileSync(join(pwa, ...p), "utf8");
 // Ordre des dépendances : chaque module ne dépend que des précédents
 const MODULES = [
   "js/data/fixtures.js",
+  "js/api/normalize.js",
+  "js/api/market-data.js",
+  "js/api/market-detail.js",
   "js/etat.js",
   "js/ui.js",
   "js/router.js",
@@ -97,7 +100,7 @@ const corps = html.slice(html.indexOf("<body>") + 6, html.lastIndexOf("</body>")
 
 const css = lire("css/style.css");
 
-const page = `<title>Marchés · prototype Phase A</title>
+const page = `<title>Marchés · données réelles</title>
 <style>
 ${css}
 /* L'aperçu publié n'a pas de barre d'adresse : on garde le fond de l'app partout */

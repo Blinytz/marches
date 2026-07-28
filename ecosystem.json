@@ -10,7 +10,7 @@
     "repository": "Blinytz/marches"
   },
   "data": {
-    "storage": ["fixtures", "localStorage"],
+    "storage": ["public-apis", "localStorage-cache", "fixtures-fallback", "supabase-schema-pending"],
     "exportAvailable": true,
     "productionMutationAllowed": false
   },

@@ -1,5 +1,6 @@
 // Bootstrap du prototype Marchés (Phase A).
-import { etat, surChangement, notifier, basculerFavori, notificationsNonVues, marquerNotifLue, marquerToutLu, marquerToutesVues, recupererClaim, reglerDemo, basculerTheme, totalARecuperer, marche } from "./etat.js";
+import { etat, surChangement, notifier, basculerFavori, notificationsNonVues, marquerNotifLue, marquerToutLu, marquerToutesVues, recupererClaim, reglerDemo, basculerTheme, totalARecuperer, marche, chargerDonneesReelles, chargerDetailMarche } from "./etat.js";
+import { suivreTempsReel } from "./api/market-detail.js";
 import { enregistrer, demarrerRouteur, routeCourante } from "./router.js";
 import { fmt, fmtEclats, compteReboursCourt } from "./ui.js";
 import { pageAccueil } from "./pages/accueil.js";
@@ -67,7 +68,14 @@ enregistrer("succes", pageSucces);
 const contenu = document.getElementById("contenu");
 const rendre = demarrerRouteur(contenu, (r) => {
   majNavigation(r);
-  if (r.page === "marche") accrocherTicket(rendre);
+  if (r.page === "marche") {
+    accrocherTicket(rendre);
+    const cible = marche(r.params[0]);
+    chargerDetailMarche(r.params[0], r.query.issue).then((charge) => { if (charge) rendre(); });
+    suivreTempsReel(cible, () => rendre());
+  } else {
+    suivreTempsReel(null);
+  }
   // Consulter le centre de notifications éteint le badge de la cloche.
   if (r.page === "notifications") marquerToutesVues();
 });
@@ -95,18 +103,25 @@ function majEntete() {
   document.querySelectorAll('[data-badge^="resultats"]').forEach((el) => { el.hidden = claims <= 0; });
 
   const tr = document.getElementById("indicateur-tr");
-  if (etat.sources.websocket.etat === "connecte") {
+  if (etat.chargementCatalogue) {
+    tr.classList.add("off");
+    tr.innerHTML = `<span>Chargement des marchés…</span>`;
+  } else if (etat.modeDonnees === "reseau") {
     tr.classList.remove("off");
-    tr.innerHTML = `⚡ <span>En direct</span>`;
+    tr.innerHTML = `● <span>Données réelles</span>`;
+  } else if (etat.modeDonnees === "cache") {
+    tr.classList.add("off");
+    tr.innerHTML = `◷ <span>Cache hors ligne</span>`;
   } else {
     tr.classList.add("off");
-    tr.innerHTML = `⚠ <span>Reconnexion…</span>`;
+    tr.innerHTML = `⚠ <span>Mode démonstration</span>`;
   }
 
   const bandeaux = [];
-  if (etat.sources.websocket.etat !== "connecte") {
-    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Connexion temps réel interrompue depuis ${etat.sources.websocket.depuisS} s :
-      reconnexion automatique en cours, les prix affichés datent de la dernière synchronisation.</div>`);
+  if (etat.modeDonnees === "cache") {
+    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Les API sont injoignables. Le dernier catalogue réel enregistré est affiché.</div>`);
+  } else if (etat.modeDonnees === "demo") {
+    bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Les API et le cache réel sont indisponibles. Les marchés de démonstration sont affichés explicitement.</div>`);
   }
   if (etat.sources.polymarket.etat !== "ok") bandeaux.push(`<div class="bandeau bandeau-panne">📡 ${etat.sources.polymarket.libelle} · les marchés Polymarket déjà connus restent consultables en lecture seule.</div>`);
   if (etat.sources.manifold.etat !== "ok") bandeaux.push(`<div class="bandeau bandeau-panne">📡 ${etat.sources.manifold.libelle} · les marchés Manifold déjà connus restent consultables en lecture seule.</div>`);
@@ -317,3 +332,4 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
 
 majEntete();
 rendre();
+chargerDonneesReelles().then(() => rendre()).catch(() => rendre());

@@ -222,6 +222,9 @@ function htmlCarnet(m) {
         vente OUI à ${pct(Math.max(0.01, (issuePrincipale(m).prob ?? 0) - 0.01))}.
         Ce prix n'est jamais un ordre réel placé chez Manifold.</p></div>`;
   }
+  if (m.detailEtat === "chargement") {
+    return `<div class="panneau"><h3>Carnet d'ordres</h3><div class="skeleton" style="height:150px"></div></div>`;
+  }
   if (!m.carnet || (!m.carnet.bids.length && !m.carnet.asks.length)) {
     return `<div class="panneau"><h3>Carnet d'ordres</h3>${etatVide("📭", "Carnet vide", "Aucune liquidité affichable pour l'instant : les transactions sont suspendues.")}</div>`;
   }
@@ -283,6 +286,7 @@ export function pageFiche({ params, query }) {
         ${fraicheur(m)}
         <span class="pastille">${libelleEcheance(m)}</span>
       </div>
+      ${m.detailEtat === "erreur" ? `<div class="bandeau bandeau-panne">Les données détaillées sont momentanément indisponibles. Le prix du catalogue reste affiché.</div>` : ""}
 
       <div class="graphique-conteneur panneau">
         ${grapheDetaille(ip.history, { plageH: Number(query.plage) || null })}
@@ -327,7 +331,9 @@ export function pageFiche({ params, query }) {
       ${htmlCarnet(m)}
 
       <div class="panneau"><h3>Activité externe récente</h3>
-        <p class="tres-muet">Phase A : l'activité et les commentaires externes (lecture seule) seront branchés en Phase B.</p></div>
+        <p class="tres-muet">${m.source === "POLYMARKET"
+          ? "Carnet et prix suivis en lecture seule via le CLOB public pendant l'ouverture de cette fiche."
+          : "Probabilité publique suivie en lecture seule via Manifold pendant l'ouverture de cette fiche."}</p></div>
 
       ${memesTheme.length ? `<div class="rangee-titre"><h2>Dans le même thème</h2></div>
         <div class="carte liste-compacte">${memesTheme.map(ligneCompacte).join("")}</div>` : ""}

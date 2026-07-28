@@ -5,6 +5,8 @@ import {
   MARCHES, POSITIONS, CLAIMS, DEFAITES, LEDGER, SOLDE_DEMO, NOTIFICATIONS,
   PREFS_DEMO, REGLAGES, ETAT_SOURCES_DEFAUT, VALEUR_NOMINALE
 } from "./data/fixtures.js";
+import { chargerCatalogueReel } from "./api/market-data.js";
+import { enrichirMarche } from "./api/market-detail.js";
 
 const CLE_STOCKAGE = "marches-proto";
 const CLE_STOCKAGE_HISTORIQUE = "eclats-marches-proto";
@@ -46,6 +48,10 @@ export const etat = {
   notifsLues: new Set(memo.notifsLues || []),   // ouvertes individuellement (retire la pastille de la ligne)
   notifsVues: new Set(memo.notifsVues || []),   // simplement consultées (retire le badge de la cloche)
   theme: memo.theme || "sombre",
+  chargementCatalogue: true,
+  modeDonnees: "chargement",
+  catalogueActualiseAt: null,
+  enrichissementsEnCours: new Set(),
 
   // Bascules de la barre démo (états section 11)
   demo: {
@@ -69,6 +75,54 @@ export function notifier() {
 export function surChangement(fn) { etat.ecouteurs.add(fn); }
 
 export function marche(id) { return etat.marches.find((m) => m.id === id); }
+
+export async function chargerDetailMarche(id, issueId) {
+  const cible = marche(id);
+  if (!cible || cible.detailEtat === "ok" || etat.enrichissementsEnCours.has(id)) return false;
+  etat.enrichissementsEnCours.add(id);
+  try {
+    await enrichirMarche(cible, issueId);
+  } catch {
+    // La fiche conserve les données du catalogue et affiche l'état dégradé.
+  } finally {
+    etat.enrichissementsEnCours.delete(id);
+    notifier();
+  }
+  return true;
+}
+
+export async function chargerDonneesReelles() {
+  etat.chargementCatalogue = true;
+  notifier();
+  const resultat = await chargerCatalogueReel();
+  const idsLocauxNecessaires = new Set([
+    ...etat.positions.map((p) => p.marcheId),
+    ...etat.claims.map((c) => c.marcheId),
+    ...etat.defaites.map((d) => d.marcheId)
+  ]);
+  const supportsSimulation = MARCHES.filter((m) => idsLocauxNecessaires.has(m.id));
+
+  if (resultat.marches.length) {
+    etat.marches = [...resultat.marches, ...supportsSimulation];
+    etat.modeDonnees = resultat.origine;
+    etat.catalogueActualiseAt = new Date().toISOString();
+  } else {
+    etat.marches = MARCHES;
+    etat.modeDonnees = "demo";
+  }
+
+  for (const source of ["polymarket", "manifold"]) {
+    const info = resultat.sources[source];
+    const nom = source === "polymarket" ? "Polymarket" : "Manifold";
+    etat.sources[source] = info.ok
+      ? { etat: "ok", libelle: `${nom} : ${info.count} marchés réels chargés` }
+      : { etat: "panne", libelle: `${nom} : API indisponible (${info.erreur})` };
+  }
+  etat.sources.websocket = { etat: "catalogue", depuisS: 0 };
+  etat.chargementCatalogue = false;
+  notifier();
+  return resultat;
+}
 
 export function basculerFavori(id) {
   if (etat.favoris.has(id)) etat.favoris.delete(id);

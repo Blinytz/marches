@@ -11,7 +11,7 @@ const ouverts = () => etat.marches.filter((m) => m.status === "OPEN" &&
   !(etat.demo.panne_manifold && m.source === "MANIFOLD"));
 
 export function pageAccueil() {
-  if (etat.demo.chargement) {
+  if (etat.demo.chargement || etat.chargementCatalogue) {
     return `<h1>Pour moi</h1><div class="rangee-cartes">${skeletons(4)}</div>
       <div class="rangee-titre"><h2 class="skeleton" style="width:220px">&nbsp;</h2></div>
       <div class="grille-cartes">${skeletons(6)}</div>`;
