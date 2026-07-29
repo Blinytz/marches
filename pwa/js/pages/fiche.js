@@ -27,7 +27,7 @@ export function ouvrirTicket(marcheId, issueId, mode = "achat") {
 
 function prixIndicatif(m, issueId, mode = "achat") {
   const issue = m.issues.find((i) => i.id === issueId);
-  if (!issue || issue.prob == null) return null;
+  if (!issue || issue.prob == null || issue.prob <= 0 || issue.prob >= 1) return null;
   // Chaque camp est coté à partir de SA probabilité, plus le spread (moitié de part
   // et d'autre du prix). Le carnet public ne concerne que le
   // camp affiché, on ne s'en sert donc pas pour coter le camp opposé.
@@ -249,7 +249,11 @@ export function pageFiche({ params, query }) {
   if (!m) return etatVide("🕳️", "Marché introuvable", "", `<a class="btn" href="#/accueil">Retour à l'accueil</a>`);
 
   const panne = etat.sources[m.source.toLowerCase()]?.etat !== "ok";
-  if (query.t) ouvrirTicket(m.id, query.issue, query.mode || "achat");
+  const routeTicketKey = `${m.id}:${query.issue || ""}:${query.mode || "achat"}`;
+  if (query.t && ticket?.routeKey !== routeTicketKey) {
+    ouvrirTicket(m.id, query.issue, query.mode || "achat");
+    ticket.routeKey = routeTicketKey;
+  }
 
   const ip = issuePrincipale(m);
   const multi = m.issues.length > 2 || m.marketType === "MULTIPLE_CHOICE" || m.marketType === "MULTIPLE";
@@ -299,7 +303,9 @@ export function pageFiche({ params, query }) {
           ${m.issues.map((i) => `<div class="ligne-issue">
             <span class="lib" title="${echap(i.label)}">${echap(i.label)}</span>
             <span class="proba">${i.prob != null ? pct(i.prob) : (i.votes != null ? i.votes + " votes" : "?")}</span>
-            ${m.tradable ? `<button class="btn-oui" data-action="ticket" data-marche="${m.id}" data-issue="${i.id}">Acheter ${i.prob != null ? Math.round(Math.min(0.99, i.prob + (m.source === "MANIFOLD" ? 0.01 : 0)) * 100) : ""}</button>` : ""}
+            ${m.tradable && i.prob > 0 && i.prob < 1
+              ? `<button class="btn-oui" data-action="ticket" data-marche="${m.id}" data-issue="${i.id}">Acheter ${Math.round(Math.min(0.99, i.prob + (m.source === "MANIFOLD" ? 0.01 : 0)) * 100)}</button>`
+              : `<span class="pastille pastille-off">Prix non négociable</span>`}
           </div>`).join("")}
         </div></div>` : ""}
 
