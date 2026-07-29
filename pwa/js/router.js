@@ -15,12 +15,17 @@ export function routeCourante() {
 }
 
 export function demarrerRouteur(conteneur, apresRendu) {
+  let derniereAdresse = null;
   async function rendre() {
+    const adresse = location.hash;
+    const memeAdresse = adresse === derniereAdresse;
+    const positionAvant = window.scrollY;
     const r = routeCourante();
     const rendu = routes.get(r.page) || routes.get("accueil");
     conteneur.innerHTML = await rendu(r);
     conteneur.focus({ preventScroll: true });
-    window.scrollTo({ top: 0, behavior: "instant" });
+    window.scrollTo({ top: memeAdresse ? positionAvant : 0, behavior: "instant" });
+    derniereAdresse = adresse;
     apresRendu?.(r);
   }
   window.addEventListener("hashchange", rendre);

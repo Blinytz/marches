@@ -67,10 +67,16 @@ enregistrer("stats", pageStats);
 enregistrer("succes", pageSucces);
 
 const contenu = document.getElementById("contenu");
+function rendreTicketIntegre() {
+  const zone = document.getElementById("zone-ticket");
+  if (!zone) return;
+  zone.innerHTML = htmlTicketCourant();
+  accrocherTicket(rendreTicketIntegre, zone);
+}
 const rendre = demarrerRouteur(contenu, (r) => {
   majNavigation(r);
   if (r.page === "marche") {
-    accrocherTicket(rendre);
+    accrocherTicket(rendreTicketIntegre);
     const cible = marche(r.params[0]);
     chargerDetailMarche(r.params[0], r.query.issue).then((charge) => { if (charge) rendre(); });
     suivreTempsReel(cible, () => rendre());
