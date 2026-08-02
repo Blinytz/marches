@@ -119,7 +119,7 @@ function majEntete() {
   if (etat.chargementCatalogue) {
     tr.classList.add("off");
     tr.innerHTML = `<span>Chargement des marchés…</span>`;
-  } else if (etat.modeDonnees === "reseau") {
+  } else if (etat.modeDonnees === "supabase" || etat.modeDonnees === "reseau") {
     tr.classList.remove("off");
     tr.innerHTML = `● <span>Données réelles</span>`;
   } else if (etat.modeDonnees === "cache") {
