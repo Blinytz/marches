@@ -1,7 +1,7 @@
 // Recherche et exploration : filtres obligatoires (8.3), horizons (8.4), tris (8.5),
 // doublons inter-sources jamais fusionnés (3.2).
 import { etat } from "../etat.js";
-import { carteMarche, skeletons, etatVide, echap } from "../ui.js";
+import { carteMarche, skeletons, etatVide, echap, estEchu } from "../ui.js";
 import { THEMES } from "../config.js";
 
 const HORIZONS = [
@@ -44,9 +44,14 @@ export function filtrerMarches(q) {
   if (q.region && q.region !== "France & Europe") liste = liste.filter((m) => m.regions.includes(q.region));
   if (q.region === "France & Europe") liste = liste.filter((m) => m.regions.some((r) => ["France", "Europe"].includes(r)));
   if (q.horizon && q.horizon !== "plus") {
-    liste = liste.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() < Number(q.horizon) * 3600e3);
+    // fenêtre = à venir uniquement (borne basse à maintenant, plus d'échéances passées)
+    liste = liste.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() > 0
+      && new Date(m.closeAt) - Date.now() < Number(q.horizon) * 3600e3);
   }
   if (q.horizon === "plus") liste = liste.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() >= 720 * 3600e3);
+  // Par défaut on masque les marchés à échéance passée (non pariables, 0 %) ;
+  // le chip « Échéance passée » (echus=1) permet de les retrouver.
+  if (q.echus !== "1") liste = liste.filter((m) => !estEchu(m));
   if (q.tradable === "1") liste = liste.filter((m) => m.tradable);
   if (q.favoris === "1") liste = liste.filter((m) => etat.favoris.has(m.id));
   if (q.position === "1") liste = liste.filter((m) => etat.positions.some((p) => p.marcheId === m.id));
@@ -103,6 +108,7 @@ export function pageRecherche({ query: q }) {
   if (q.tradable === "1") chipsActifs.push(`<a class="chip actif" href="${lien(q, { tradable: "" })}">Tradable ✕</a>`);
   if (q.favoris === "1") chipsActifs.push(`<a class="chip actif" href="${lien(q, { favoris: "" })}">Favoris ✕</a>`);
   if (q.position === "1") chipsActifs.push(`<a class="chip actif" href="${lien(q, { position: "" })}">Avec position ✕</a>`);
+  if (q.echus === "1") chipsActifs.push(`<a class="chip actif" href="${lien(q, { echus: "" })}">Échéance passée ✕</a>`);
 
   return `
     <h1>Recherche</h1>
@@ -120,6 +126,7 @@ export function pageRecherche({ query: q }) {
       <a class="chip ${q.tradable === "1" ? "actif" : ""}" href="${lien(q, { tradable: q.tradable === "1" ? "" : "1" })}">Tradable uniquement</a>
       <a class="chip ${q.favoris === "1" ? "actif" : ""}" href="${lien(q, { favoris: q.favoris === "1" ? "" : "1" })}">Mes favoris</a>
       <a class="chip ${q.position === "1" ? "actif" : ""}" href="${lien(q, { position: q.position === "1" ? "" : "1" })}">Avec position</a>
+      <a class="chip ${q.echus === "1" ? "actif" : ""}" href="${lien(q, { echus: q.echus === "1" ? "" : "1" })}">Échéance passée</a>
     </div>
 
     <div class="chips">

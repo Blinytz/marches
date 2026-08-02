@@ -59,6 +59,15 @@ export function compteReboursCourt(iso) {
   return `${hh}:${mm}:${ss}`;
 }
 
+// Marché « à échéance passée » : sa date de clôture/résolution est dépassée
+// mais la source ne l'a pas encore résolu. Non pariable et sans intérêt pour
+// la navigation — on l'écarte des listes par défaut (récupérable via un filtre).
+export function estEchu(m, margeMs = 0) {
+  if (m.status === "RESOLVED" || m.status === "CANCELLED" || m.status === "CLOSED") return true;
+  const echeance = m.expectedResolutionAt || m.closeAt;
+  return Boolean(echeance) && (new Date(echeance).getTime() - Date.now()) < margeMs;
+}
+
 export function libelleEcheance(m) {
   if (m.status === "RESOLVED" || m.status === "CANCELLED") return "terminé";
   if (m.status === "CLOSED") return "Fermé · résolution en attente";

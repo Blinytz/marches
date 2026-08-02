@@ -3,10 +3,12 @@ import { etat, totalARecuperer, claimsOuverts } from "../etat.js";
 import {
   carteMarche, carteMultiIssues, ligneCompacte, skeletons, etatVide,
   fmtEclats, badgeSource, htmlVariation, issuePrincipale, pct, echap, imgMarche,
-  libelleEcheance, fmtSigne, plLatent
+  libelleEcheance, fmtSigne, plLatent, estEchu
 } from "../ui.js";
 
-const ouverts = () => etat.marches.filter((m) => m.status === "OPEN");
+// Marchés ouverts ET dont l'échéance n'est pas passée : le fil ne montre que
+// des marchés réellement actionnables (fini les 0 % « échéance passée »).
+const ouverts = () => etat.marches.filter((m) => m.status === "OPEN" && !estEchu(m));
 
 export function pageAccueil() {
   if (etat.chargementCatalogue) {
@@ -28,7 +30,8 @@ export function pageAccueil() {
       <a class="btn btn-claim" href="#/resultats">Récupérer</a>
     </div>` : "";
 
-  const sous24 = tous.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() < 24 * 3600e3)
+  const sous24 = tous.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() > 0
+      && new Date(m.closeAt) - Date.now() < 24 * 3600e3)
     .sort((a, b) => new Date(a.closeAt) - new Date(b.closeAt));
 
   const nouveauxThemes = tous.filter((m) => etat.prefs.themesSuivis.includes(m.theme));
