@@ -21,13 +21,14 @@ import { telechargerExportEclatsMarches } from "./integration/export-snapshot.js
 const SOUS_NAV = {
   marches: [
     { lib: "Pour moi", href: "#/accueil", actif: (r) => r.page === "accueil" },
+    { lib: "Tous les marchés", href: "#/recherche",
+      actif: (r) => r.page === "recherche" && !r.query.horizon && !r.query.vue
+        && r.query.tri !== "volume" && !(r.query.region || "").startsWith("France") },
+    { lib: "Populaires", href: "#/recherche?tri=volume", actif: (r) => r.page === "recherche" && r.query.tri === "volume" },
     { lib: "24 h", href: "#/recherche?horizon=24", actif: (r) => r.page === "recherche" && r.query.horizon === "24" },
     { lib: "France & Europe", href: "#/recherche?region=France%20%26%20Europe", actif: (r) => r.page === "recherche" && (r.query.region || "").startsWith("France") },
-    { lib: "Nouveaux", href: "#/recherche?tri=nouveau", actif: (r) => r.page === "recherche" && r.query.tri === "nouveau" },
-    { lib: "Populaires", href: "#/recherche?tri=volume", actif: (r) => r.page === "recherche" && r.query.tri === "volume" },
     { lib: "Thèmes", href: "#/recherche?vue=themes", actif: (r) => r.page === "recherche" && r.query.vue === "themes" },
-    { lib: "Favoris", href: "#/favoris", actif: (r) => r.page === "favoris" },
-    { lib: "Recherche", href: "#/recherche", actif: (r) => r.page === "recherche" && !r.query.horizon && !r.query.tri && !r.query.vue && !(r.query.region || "").startsWith("France") }
+    { lib: "Favoris", href: "#/favoris", actif: (r) => r.page === "favoris" }
   ],
   positions: [],
   portefeuille: [],
@@ -268,9 +269,30 @@ document.body.addEventListener("click", async (e) => {
     notifier(); rendre();
   }
   if (a === "enregistrer-filtre") {
+    // Capture les VRAIS critères de la recherche courante (query du hash) et
+    // en fait un libellé lisible, pour pouvoir restaurer le filtre à l'identique.
+    const requete = (location.hash.split("?")[1] || "");
+    const params = new URLSearchParams(requete);
+    const LIB = { q: "Recherche", source: "Source", theme: "Thème", region: "Région",
+      horizon: "Horizon", tradable: "Tradable", favoris: "Favoris",
+      position: "Avec position", tri: "Tri", statut: "Statut" };
+    const morceaux = [...params.entries()]
+      .filter(([, v]) => v && v !== "0")
+      .map(([k, v]) => `${LIB[k] || k}: ${v === "1" ? "oui" : v}`);
+    const criteres = morceaux.length ? morceaux.join(" · ") : "Tous les marchés";
+    const nomDefaut = params.get("q") || params.get("theme") || params.get("region") || criteres;
+    const nom = (prompt("Nom du filtre :", nomDefaut.slice(0, 40)) || "").trim();
+    if (!nom) return;
+    etat.prefs.filtresEnregistres.push({
+      id: "f" + Date.now(), nom, criteres, requete: params.toString()
+    });
     act.textContent = "✓ Filtre enregistré dans Ma liste";
-    etat.prefs.filtresEnregistres.push({ id: "f" + Date.now(), nom: "Filtre du " + new Date().toLocaleDateString("fr-FR"), criteres: "Critères actuels de la recherche" });
     notifier();
+  }
+  if (a === "supprimer-filtre") {
+    e.preventDefault();
+    etat.prefs.filtresEnregistres = etat.prefs.filtresEnregistres.filter((f) => f.id !== act.dataset.id);
+    notifier(); rendre();
   }
   if (a === "notif-test") {
     act.textContent = "✓ Notification de test envoyée au centre interne";

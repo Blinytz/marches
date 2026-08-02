@@ -33,10 +33,13 @@ export function pageFavoris({ query }) {
       <p class="muet">Suivre France et Europe réduit l'américanisation du fil : la politique locale américaine non suivie reçoit un malus.</p>`,
     filtres: etat.prefs.filtresEnregistres.length
       ? `<div class="carte liste-compacte">${etat.prefs.filtresEnregistres.map((f) =>
-          `<a class="ligne-compacte" href="#/recherche?horizon=24&region=France">
-            <span class="carte-titre" style="flex:1">${echap(f.nom)}</span>
-            <span class="tres-muet">${echap(f.criteres)}</span>
-          </a>`).join("")}</div>`
+          `<div class="ligne-compacte">
+            <a class="carte-titre" style="flex:1; min-width:0" href="#/recherche${f.requete ? "?" + f.requete : ""}">
+              ${echap(f.nom)}
+              <span class="tres-muet" style="display:block">${echap(f.criteres || "")}</span>
+            </a>
+            <button class="carte-etoile" data-action="supprimer-filtre" data-id="${echap(f.id)}" title="Supprimer ce filtre">✕</button>
+          </div>`).join("")}</div>`
       : etatVide("🔖", "Aucun filtre enregistré", "Dans la recherche, composez vos critères puis « Enregistrer ce filtre »."),
     masques: etat.prefs.masques.length
       ? `<div class="chips">${etat.prefs.masques.map((t) =>

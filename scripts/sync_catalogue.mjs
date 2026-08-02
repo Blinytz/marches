@@ -8,8 +8,26 @@ import {
   normaliserCataloguePolymarket
 } from "../pwa/js/api/normalize.js";
 
-const POLYMARKET_URL = "https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false&order=volume24hr&ascending=false";
-const MANIFOLD_URL = "https://api.manifold.markets/v0/markets?limit=500";
+// On ne se limite plus au seul haut du panier par volume : on interroge
+// Polymarket sur DEUX axes (plus gros volume ET plus récents) puis on
+// dédoublonne, pour laisser entrer les marchés émergents. Manifold est
+// récupéré large puis filtré/mixé plus bas.
+const POLYMARKET_URLS = [
+  "https://gamma-api.polymarket.com/events?limit=300&active=true&closed=false&order=volume24hr&ascending=false",
+  "https://gamma-api.polymarket.com/events?limit=200&active=true&closed=false&order=startDate&ascending=false"
+];
+const MANIFOLD_URL = "https://api.manifold.markets/v0/markets?limit=1000&sort=created-time";
+
+// Fusionne plusieurs réponses Polymarket en dédoublonnant par identifiant.
+function fusionnerParId(listes) {
+  const parId = new Map();
+  for (const liste of listes) {
+    for (const item of (liste || [])) {
+      if (item && item.id != null && !parId.has(item.id)) parId.set(item.id, item);
+    }
+  }
+  return [...parId.values()];
+}
 
 async function lireJson(url, delaiMs = 30000) {
   const controleur = new AbortController();
@@ -35,10 +53,24 @@ const nombre = (valeur) => Number.isFinite(Number(valeur)) ? Number(valeur) : 0;
 export function preparerCatalogue(polymarketBrut, manifoldBrut, maintenant = new Date()) {
   const instant = maintenant.toISOString();
   const polyNormalises = normaliserCataloguePolymarket(polymarketBrut, maintenant.getTime());
-  const manifoldNormalises = normaliserCatalogueManifold(manifoldBrut, maintenant.getTime())
-    .filter((marche) => marche.status === "OPEN")
+  // Manifold : on garde un large éventail sans se limiter au volume — un mix
+  // des plus actifs ET des plus récents pour laisser entrer les nouveautés.
+  const manifoldOuverts = normaliserCatalogueManifold(manifoldBrut, maintenant.getTime())
+    .filter((marche) => marche.status === "OPEN");
+  const manifoldParId = new Map((manifoldBrut || []).map((x) => [String(x.id), x]));
+  const dateCreation = (m) => {
+    const b = manifoldParId.get(String(m.externalId));
+    return b?.createdTime ? Number(b.createdTime) : 0;
+  };
+  const parVolume = [...manifoldOuverts]
     .sort((a, b) => (b.volume24h || 0) - (a.volume24h || 0) || (b.volume || 0) - (a.volume || 0))
-    .slice(0, 150);
+    .slice(0, 250);
+  const parRecence = [...manifoldOuverts]
+    .sort((a, b) => dateCreation(b) - dateCreation(a))
+    .slice(0, 200);
+  const manifoldNormalises = [...new Map(
+    [...parVolume, ...parRecence].map((m) => [m.externalId, m])
+  ).values()];
   const brutParCle = new Map([
     ...(polymarketBrut || []).map((x) => [`POLYMARKET:${x.id}`, x]),
     ...(manifoldBrut || []).map((x) => [`MANIFOLD:${x.id}`, x])
@@ -171,7 +203,10 @@ export class SupabaseService {
 async function synchroniser({ ecriture = false, trigger = "manual" } = {}) {
   const startedAt = new Date();
   const runId = randomUUID();
-  const resultats = await Promise.allSettled([lireJson(POLYMARKET_URL), lireJson(MANIFOLD_URL)]);
+  const resultats = await Promise.allSettled([
+    Promise.all(POLYMARKET_URLS.map((url) => lireJson(url))).then(fusionnerParId),
+    lireJson(MANIFOLD_URL)
+  ]);
   const erreurs = resultats.flatMap((resultat, index) => resultat.status === "rejected"
     ? [{ source: index === 0 ? "POLYMARKET" : "MANIFOLD", message: resultat.reason?.message || String(resultat.reason) }]
     : []);
@@ -218,14 +253,14 @@ async function synchroniser({ ecriture = false, trigger = "manual" } = {}) {
     const marchesSnapshots = new Set(
       [...marketsAvecEvent]
         .sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0) || (b.volume || 0) - (a.volume || 0))
-        .slice(0, 100)
+        .slice(0, 300)
         .map((x) => marketIds.get(`${x.source}:${x.external_id}`))
         .filter(Boolean)
     );
     const quartHeure = new Date(Math.floor(startedAt.getTime() / (15 * 60 * 1000)) * 15 * 60 * 1000).toISOString();
     const snapshots = outcomesRetour
       .filter((x) => x.probability != null && marchesSnapshots.has(x.market_id))
-      .slice(0, 300)
+      .slice(0, 800)
       .map((x) => ({ outcome_id: x.id, probability: x.probability, recorded_at: quartHeure }));
     await db.upsert("mk_price_snapshots", snapshots, "outcome_id,recorded_at", "id");
 

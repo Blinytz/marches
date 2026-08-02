@@ -51,11 +51,15 @@ export function filtrerMarches(q) {
   if (q.favoris === "1") liste = liste.filter((m) => etat.favoris.has(m.id));
   if (q.position === "1") liste = liste.filter((m) => etat.positions.some((p) => p.marcheId === m.id));
 
-  const tri = q.tri || "pertinent";
+  // Par défaut « Tous les marchés » = les plus récents d'abord, pour que rien
+  // ne soit enterré par la personnalisation. « Pertinent pour moi » reste un
+  // tri au choix, et le fil « Pour moi » (accueil) reste la vue personnalisée.
+  const tri = q.tri || "nouveau";
+  const dateCreation = (m) => new Date(m.createdAt || m.firstSeenAt || 0).getTime();
   const cmp = {
     pertinent: (a, b) => score(b) - score(a),
     echeance: (a, b) => new Date(a.closeAt || 8e15) - new Date(b.closeAt || 8e15),
-    nouveau: (a, b) => (b.volume24h || 0) / Math.max(1, b.volume || 1) - (a.volume24h || 0) / Math.max(1, a.volume || 1),
+    nouveau: (a, b) => dateCreation(b) - dateCreation(a),
     volume: (a, b) => (b.volume || 0) - (a.volume || 0),
     variation: (a, b) => {
       const va = (x) => { const i = x.issues[0]; return i?.prob != null && i.prev24h != null ? Math.abs(i.prob - i.prev24h) : 0; };
@@ -120,7 +124,7 @@ export function pageRecherche({ query: q }) {
 
     <div class="chips">
       <span class="tres-muet" style="align-self:center">Trier :</span>
-      ${TRIS.map((t) => `<a class="chip ${(q.tri || "pertinent") === t.cle ? "actif" : ""}" href="${lien(q, { tri: t.cle })}">${t.lib}</a>`).join("")}
+      ${TRIS.map((t) => `<a class="chip ${(q.tri || "nouveau") === t.cle ? "actif" : ""}" href="${lien(q, { tri: t.cle })}">${t.lib}</a>`).join("")}
     </div>
 
     <div class="rangee-titre">

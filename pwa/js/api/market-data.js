@@ -52,6 +52,16 @@ function marcheDepuisSupabase(ligne) {
     theme: ligne.category || "Autres",
     regions: ligne.regions || ["Monde"],
     closeAt: ligne.close_at,
+    // Date de création à la source (lue depuis le payload brut, sans colonne
+    // dédiée) et date d'entrée dans notre catalogue — pour un vrai tri Nouveaux.
+    createdAt: (() => {
+      const b = ligne.raw_payload || {};
+      if (b.createdAt) return b.createdAt;
+      if (b.creationDate) return b.creationDate;
+      if (b.createdTime) return new Date(Number(b.createdTime)).toISOString();
+      return ligne.first_seen_at || null;
+    })(),
+    firstSeenAt: ligne.first_seen_at || null,
     expectedResolutionAt: ligne.expected_resolution_at,
     resolutionTimeConfidence: "EXPECTED",
     resolutionSource: ligne.resolution_source,
@@ -84,7 +94,7 @@ export async function chargerCatalogueSupabase() {
     status: "eq.OPEN",
     unavailable_at: "is.null",
     order: "volume_24h.desc",
-    limit: "300"
+    limit: "1000"
   });
   return (lignes || []).map(marcheDepuisSupabase).filter((m) => m.issues.length);
 }
