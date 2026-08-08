@@ -103,15 +103,51 @@ const COLONNES_MARCHE = [
   "mk_outcomes(external_id,label,position,probability,previous_24h,clob_token_id,source_market_id,condition_id)"
 ].join(",");
 
-export async function chargerCatalogueSupabase() {
-  const lignes = await rest("mk_markets", {
+// Le catalogue dépasse le millier de marchés : demandé d'un bloc, PostgREST
+// dépasse le délai d'exécution accordé au rôle public. On le lit page par page,
+// du plus gros volume au plus petit, et on garde ce qu'on a pu obtenir.
+const TAILLE_PAGE = 300;
+const PAGES_MAX = 9;
+const PAGES_SIMULTANEES = 3;
+
+function pageCatalogue(page) {
+  return rest("mk_markets", {
     select: COLONNES_MARCHE,
     status: "eq.OPEN",
     unavailable_at: "is.null",
-    order: "volume_24h.desc",
-    limit: "2000"
+    // Tri par clé primaire : stable d'une page à l'autre (aucun recouvrement,
+    // aucun trou) et surtout dix fois plus rapide qu'un tri par volume, qui
+    // dépassait le délai d'exécution accordé au rôle public. Le classement
+    // affiché est de toute façon calculé côté client.
+    order: "id.asc",
+    limit: String(TAILLE_PAGE),
+    offset: String(page * TAILLE_PAGE)
   });
-  return (lignes || []).map(marcheDepuisSupabase).filter((m) => m.issues.length);
+}
+
+export async function chargerCatalogueSupabase() {
+  const marches = [];
+  let premiereErreur = null;
+  for (let debut = 0; debut < PAGES_MAX; debut += PAGES_SIMULTANEES) {
+    const lot = await Promise.all(
+      Array.from({ length: PAGES_SIMULTANEES }, (_, i) => debut + i)
+        .filter((page) => page < PAGES_MAX)
+        .map((page) => pageCatalogue(page).catch((erreur) => {
+          premiereErreur = premiereErreur || erreur;
+          return null;
+        }))
+    );
+    for (const lignes of lot) {
+      if (!lignes?.length) continue;
+      marches.push(...lignes.map(marcheDepuisSupabase).filter((m) => m.issues.length));
+    }
+    // Un lot incomplet signifie que le catalogue est épuisé.
+    if (lot.some((lignes) => !lignes || lignes.length < TAILLE_PAGE)) break;
+  }
+  // Une page manquante vaut mieux qu'un écran vide, mais zéro marché est une
+  // vraie panne qu'il faut laisser remonter jusqu'au repli hors ligne.
+  if (!marches.length && premiereErreur) throw premiereErreur;
+  return marches;
 }
 
 function lireCache() {

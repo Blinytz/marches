@@ -21,6 +21,7 @@ const workflowDeploy = read(".github/workflows/deploy-pages.yml");
 const sw = read("pwa/sw.js");
 const sync = read("scripts/sync_catalogue.mjs");
 const marketData = read("pwa/js/api/market-data.js");
+const accueil = read("pwa/js/pages/accueil.js");
 const pagesDir = new URL("pwa/js/pages/", root);
 const pageText = readdirSync(pagesDir)
   .filter((name) => name.endsWith(".js"))
@@ -77,6 +78,13 @@ test("le client ne demande plus les payloads bruts",
   !/issue\.raw_payload/.test(marketData));
 test("le cache hors ligne se replie quand le quota est atteint",
   marketData.includes("tentatives") && marketData.includes("marches.slice(0, 400)"));
+test("le catalogue est lu page par page, trié sur la clé primaire",
+  marketData.includes('order: "id.asc"') && marketData.includes("PAGES_SIMULTANEES") &&
+  !marketData.includes('limit: "1000"'));
+test("l'accueil ne reste pas vide sans thème suivi",
+  accueil.includes("!themesSuivis.length || themesSuivis.includes(m.theme)") &&
+  accueil.includes("Derniers marchés ouverts"));
+test("aucune instrumentation de mise au point ne subsiste", !index.includes("__jrn"));
 
 const jsFiles = [
   "pwa/js/app.js", "pwa/js/etat.js", "pwa/js/router.js", "pwa/js/ui.js",

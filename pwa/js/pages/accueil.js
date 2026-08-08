@@ -34,7 +34,15 @@ export function pageAccueil() {
       && new Date(m.closeAt) - Date.now() < 24 * 3600e3)
     .sort((a, b) => new Date(a.closeAt) - new Date(b.closeAt));
 
-  const nouveauxThemes = tous.filter((m) => etat.prefs.themesSuivis.includes(m.theme));
+  // Sans thème suivi, la section restait vide en permanence alors que le
+  // catalogue se renouvelle en continu : on montre alors les entrées les plus
+  // récentes, toutes catégories confondues.
+  const themesSuivis = etat.prefs.themesSuivis;
+  const dateEntree = (m) => Date.parse(m.createdAt || m.firstSeenAt || "") || 0;
+  const nouveauxThemes = tous
+    .filter((m) => !themesSuivis.length || themesSuivis.includes(m.theme))
+    .sort((a, b) => dateEntree(b) - dateEntree(a))
+    .slice(0, 4);
   const franceEurope = tous.filter((m) => m.regions.some((r) => ["France", "Europe"].includes(r)));
   const longTerme = tous.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() > 30 * 24 * 3600e3).slice(0, 3);
 
@@ -70,8 +78,10 @@ export function pageAccueil() {
       ? `<div class="rangee-cartes">${sous24.map(carteMarche).join("")}</div>`
       : etatVide("⏱", "Rien ne se résout dans les 24 h", "Élargissez l'horizon dans la recherche.")}
 
-    <div class="rangee-titre"><h2>✨ Nouveaux dans vos thèmes</h2>
-      <span class="tres-muet">${etat.prefs.themesSuivis.join(" · ")}</span></div>
+    <div class="rangee-titre"><h2>✨ ${themesSuivis.length ? "Nouveaux dans vos thèmes" : "Derniers marchés ouverts"}</h2>
+      ${themesSuivis.length
+        ? `<span class="tres-muet">${echap(themesSuivis.join(" · "))}</span>`
+        : `<a class="lien-tout" href="#/parametres">Choisir mes thèmes</a>`}</div>
     ${nouveauxThemes.length
       ? carteEditoriale(nouveauxThemes[0]) +
         (nouveauxThemes.length > 1 ? `<div class="grille-cartes" style="margin-top:12px">${nouveauxThemes.slice(1, 4).map(carteMarche).join("")}</div>` : "")
