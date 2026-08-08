@@ -22,6 +22,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # Empreinte du déploiement : l'app la relit périodiquement et se recharge
+      # d'elle-même quand elle change (une PWA installée peut rester ouverte
+      # des jours avec l'ancien code en mémoire).
+      - name: Estampiller la version
+        run: printf '{ "version": "%s" }\n' "$GITHUB_SHA" > pwa/version.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: pwa

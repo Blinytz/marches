@@ -55,10 +55,9 @@ function marcheDepuisSupabase(ligne) {
     // Date de création à la source (lue depuis le payload brut, sans colonne
     // dédiée) et date d'entrée dans notre catalogue — pour un vrai tri Nouveaux.
     createdAt: (() => {
-      const b = ligne.raw_payload || {};
-      if (b.createdAt) return b.createdAt;
-      if (b.creationDate) return b.creationDate;
-      if (b.createdTime) return new Date(Number(b.createdTime)).toISOString();
+      if (ligne.cree_poly) return ligne.cree_poly;
+      if (ligne.cree_poly2) return ligne.cree_poly2;
+      if (ligne.cree_manifold) return new Date(Number(ligne.cree_manifold)).toISOString();
       return ligne.first_seen_at || null;
     })(),
     firstSeenAt: ligne.first_seen_at || null,
@@ -75,26 +74,42 @@ function marcheDepuisSupabase(ligne) {
     issues: (ligne.mk_outcomes || [])
       .sort((a, b) => a.position - b.position)
       .map((issue) => ({
-        ...(issue.raw_payload || {}),
         id: issue.external_id,
         label: issue.label,
         prob: issue.probability == null ? null : Number(issue.probability),
         prev24h: issue.previous_24h == null ? null : Number(issue.previous_24h),
-        tokenId: issue.clob_token_id || issue.raw_payload?.tokenId || null,
-        marketId: issue.source_market_id || issue.raw_payload?.marketId || null,
-        conditionId: issue.condition_id || issue.raw_payload?.conditionId || null,
+        tokenId: issue.clob_token_id || null,
+        marketId: issue.source_market_id || null,
+        conditionId: issue.condition_id || null,
         history: []
       }))
   };
 }
 
+// Colonnes réellement lues par le client. « select=* » ramenait aussi les
+// raw_payload complets, soit 14 Mo pour 546 marchés dont 12 Mo inutiles : le
+// chargement mobile était lent et la mise en cache hors ligne dépassait
+// silencieusement le quota. Seules les trois dates de création manquantes en
+// colonne sont extraites du payload.
+const COLONNES_MARCHE = [
+  "source", "external_id", "source_url", "title", "description", "image_url",
+  "market_type", "status", "tradable", "non_tradable_reason", "category", "regions",
+  "close_at", "expected_resolution_at", "resolution_source",
+  "volume", "volume_24h", "liquidity", "bettor_count", "spread",
+  "source_updated_at", "last_seen_at", "first_seen_at",
+  "cree_poly:raw_payload->>createdAt",
+  "cree_poly2:raw_payload->>creationDate",
+  "cree_manifold:raw_payload->>createdTime",
+  "mk_outcomes(external_id,label,position,probability,previous_24h,clob_token_id,source_market_id,condition_id)"
+].join(",");
+
 export async function chargerCatalogueSupabase() {
   const lignes = await rest("mk_markets", {
-    select: "*,mk_outcomes(*)",
+    select: COLONNES_MARCHE,
     status: "eq.OPEN",
     unavailable_at: "is.null",
     order: "volume_24h.desc",
-    limit: "1000"
+    limit: "2000"
   });
   return (lignes || []).map(marcheDepuisSupabase).filter((m) => m.issues.length);
 }
@@ -110,10 +125,20 @@ function lireCache() {
 }
 
 function sauverCache(marches) {
-  try {
-    localStorage.setItem(CLE_CACHE, JSON.stringify({ enregistreAt: Date.now(), marches }));
-  } catch {
-    // Un catalogue trop volumineux ne doit jamais empêcher l'application de fonctionner.
+  // Le quota localStorage (~5 Mo) est vite atteint : plutôt que de renoncer au
+  // hors-ligne, on retente avec un catalogue de plus en plus réduit.
+  const tentatives = [
+    marches,
+    marches.map(({ descriptionOriginal, ...m }) => ({ ...m, descriptionOriginal: "" })),
+    marches.slice(0, 400).map(({ descriptionOriginal, ...m }) => ({ ...m, descriptionOriginal: "" }))
+  ];
+  for (const lot of tentatives) {
+    try {
+      localStorage.setItem(CLE_CACHE, JSON.stringify({ enregistreAt: Date.now(), marches: lot }));
+      return;
+    } catch {
+      // Trop volumineux : on essaie la variante suivante.
+    }
   }
 }
 

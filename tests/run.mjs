@@ -17,6 +17,10 @@ const stats = read("pwa/js/pages/stats.js");
 const migrationCatalogue = read("sql/001_catalogue_reel.sql");
 const migrationPortefeuille = read("sql/002_portefeuille_eclats_reel.sql");
 const workflowSync = read(".github/workflows/sync-catalogue.yml");
+const workflowDeploy = read(".github/workflows/deploy-pages.yml");
+const sw = read("pwa/sw.js");
+const sync = read("scripts/sync_catalogue.mjs");
+const marketData = read("pwa/js/api/market-data.js");
 const pagesDir = new URL("pwa/js/pages/", root);
 const pageText = readdirSync(pagesDir)
   .filter((name) => name.endsWith(".js"))
@@ -49,6 +53,30 @@ test("le grant énumère les séquences avec la syntaxe PostgreSQL singulière",
   !/\bon\s+sequences\s+public\./i.test(migrationCatalogue));
 test("le workflow ne contient aucun secret en clair", workflowSync.includes("secrets.SUPABASE_SERVICE_KEY") &&
   !/sb_secret_|service_role\\s*[:=]\\s*['\"]/i.test(workflowSync));
+
+// Mise à jour : sans ces trois pièces, une PWA installée continue de tourner
+// avec le code chargé au premier lancement, parfois pendant des jours.
+test("le service worker contourne le cache HTTP de GitHub Pages", sw.includes('cache: "no-cache"'));
+test("le déploiement estampille une version", workflowDeploy.includes("pwa/version.json") &&
+  workflowDeploy.includes("GITHUB_SHA"));
+test("l'app relit la version au retour au premier plan",
+  app.includes('fetch(`version.json?t=${Date.now()}`, { cache: "no-store" })') &&
+  app.includes('document.addEventListener("visibilitychange"'));
+test("une saisie en cours empêche le rechargement automatique",
+  app.includes("appAuRepos()") && app.includes('bandeau-maj'));
+test("« Tous les marchés » reste accessible depuis la sous-navigation",
+  app.includes('lib: "Tous les marchés", href: "#/recherche"'));
+
+// Taille du catalogue : l'API Gamma plafonne « limit » à 100 et « select=* »
+// ramenait 12 Mo de raw_payload inutiles au client.
+test("la synchro pagine Polymarket au lieu de demander une limite ignorée",
+  sync.includes("offset=${page * 100}") && !/limit=(?:200|300)&active/.test(sync));
+test("le client ne demande plus les payloads bruts",
+  !marketData.includes('select: "*,mk_outcomes(*)"') &&
+  marketData.includes("raw_payload->>createdAt") &&
+  !/issue\.raw_payload/.test(marketData));
+test("le cache hors ligne se replie quand le quota est atteint",
+  marketData.includes("tentatives") && marketData.includes("marches.slice(0, 400)"));
 
 const jsFiles = [
   "pwa/js/app.js", "pwa/js/etat.js", "pwa/js/router.js", "pwa/js/ui.js",

@@ -278,6 +278,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
   background: var(--grad-eclats); color: #4a2e00; font-weight: 600;
   box-shadow: var(--ombre-2);
 }
+.bandeau-maj { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .bandeau .btn { margin-left: auto; flex-shrink: 0; }
 
 /* ===================== Contenu ===================== */

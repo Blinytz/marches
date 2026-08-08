@@ -12,11 +12,35 @@ import {
 // Polymarket sur DEUX axes (plus gros volume ET plus récents) puis on
 // dédoublonne, pour laisser entrer les marchés émergents. Manifold est
 // récupéré large puis filtré/mixé plus bas.
-const POLYMARKET_URLS = [
-  "https://gamma-api.polymarket.com/events?limit=300&active=true&closed=false&order=volume24hr&ascending=false",
-  "https://gamma-api.polymarket.com/events?limit=200&active=true&closed=false&order=startDate&ascending=false"
-];
+// L'API Gamma plafonne « limit » à 100 quoi qu'on demande : sans pagination le
+// catalogue restait bloqué à 200 événements. On parcourt donc chaque axe page
+// par page.
+const POLYMARKET_BASE = "https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false";
+const POLYMARKET_AXES = ["order=volume24hr&ascending=false", "order=startDate&ascending=false"];
+const POLYMARKET_PAGES = 5;
+const POLYMARKET_URLS = POLYMARKET_AXES.flatMap((axe) => Array.from(
+  { length: POLYMARKET_PAGES },
+  (_, page) => `${POLYMARKET_BASE}&${axe}&offset=${page * 100}`
+));
 const MANIFOLD_URL = "https://api.manifold.markets/v0/markets?limit=1000&sort=created-time";
+
+// Écriture par lots : au-delà, PostgREST dépasse le délai d'exécution imposé
+// par Supabase sur les tables qui portent un raw_payload.
+const TAILLE_LOT = 40;
+// Les tables qui portent un raw_payload complet (un événement Polymarket
+// entier) coûtent bien plus cher par ligne que mk_outcomes ou les relevés.
+const LOT_LOURD = 25;
+const LOT_LEGER = 150;
+const MAX_REPRISES = 4;
+
+const pause = (ms) => new Promise((resoudre) => setTimeout(resoudre, ms));
+
+// Délai d'exécution dépassé (57014) ou indisponibilité passagère de la base :
+// ce sont des erreurs à réessayer, pas des erreurs de données.
+export function estSurcharge(erreur) {
+  const message = String(erreur?.message || erreur);
+  return /57014|statement timeout|HTTP 5(0[0234]|4[04])|ECONNRESET|fetch failed/i.test(message);
+}
 
 // Fusionne plusieurs réponses Polymarket en dédoublonnant par identifiant.
 function fusionnerParId(listes) {
@@ -157,7 +181,18 @@ export class SupabaseService {
     this.key = key;
   }
 
-  async requete(path, { method = "GET", body, prefer } = {}) {
+  async requete(path, { method = "GET", body, prefer, reprises = 0 } = {}) {
+    for (let essai = 0; ; essai++) {
+      try {
+        return await this.appel(path, { method, body, prefer });
+      } catch (erreur) {
+        if (essai >= reprises || !estSurcharge(erreur)) throw erreur;
+        await pause(500 * (essai + 1));
+      }
+    }
+  }
+
+  async appel(path, { method = "GET", body, prefer } = {}) {
     const authorization = this.key.startsWith("sb_")
       ? {}
       : { Authorization: `Bearer ${this.key}` };
@@ -176,17 +211,36 @@ export class SupabaseService {
     return texte ? JSON.parse(texte) : null;
   }
 
-  async upsert(table, lignes, conflit, select = "id") {
+  async upsert(table, lignes, conflit, select = "id", taille = TAILLE_LOT) {
     const sorties = [];
-    for (let i = 0; i < lignes.length; i += 100) {
-      const lot = lignes.slice(i, i + 100);
+    for (let i = 0; i < lignes.length; i += taille) {
+      sorties.push(...await this.envoyerLot(table, lignes.slice(i, i + taille), conflit, select));
+    }
+    return sorties;
+  }
+
+  // Un lot trop lourd (raw_payload volumineux) dépasse le délai d'exécution
+  // PostgreSQL : on recoupe le lot en deux plutôt que d'abandonner la synchro.
+  async envoyerLot(table, lot, conflit, select, essai = 0) {
+    if (!lot.length) return [];
+    try {
       const resultat = await this.requete(
         `${table}?on_conflict=${encodeURIComponent(conflit)}&select=${encodeURIComponent(select)}`,
         { method: "POST", body: lot, prefer: "resolution=merge-duplicates,return=representation" }
       );
-      sorties.push(...(resultat || []));
+      return resultat || [];
+    } catch (erreur) {
+      if (!estSurcharge(erreur) || essai >= MAX_REPRISES) throw erreur;
+      await pause(500 * (essai + 1));
+      if (lot.length > 1) {
+        const milieu = Math.ceil(lot.length / 2);
+        return [
+          ...await this.envoyerLot(table, lot.slice(0, milieu), conflit, select, essai + 1),
+          ...await this.envoyerLot(table, lot.slice(milieu), conflit, select, essai + 1)
+        ];
+      }
+      return this.envoyerLot(table, lot, conflit, select, essai + 1);
     }
-    return sorties;
   }
 
   async inserer(table, lignes) {
@@ -237,19 +291,19 @@ async function synchroniser({ ecriture = false, trigger = "manual" } = {}) {
   }]);
 
   try {
-    const eventsRetour = await db.upsert("mk_events", catalogue.events, "source,external_id", "id,source,external_id");
+    const eventsRetour = await db.upsert("mk_events", catalogue.events, "source,external_id", "id,source,external_id", LOT_LOURD);
     const eventIds = new Map(eventsRetour.map((x) => [`${x.source}:${x.external_id}`, x.id]));
     const marketsAvecEvent = catalogue.markets.map((x) => ({
       ...x,
       event_id: eventIds.get(`${x.source}:${x.external_id}`) || null
     }));
-    const marketsRetour = await db.upsert("mk_markets", marketsAvecEvent, "source,external_id", "id,source,external_id");
+    const marketsRetour = await db.upsert("mk_markets", marketsAvecEvent, "source,external_id", "id,source,external_id", LOT_LOURD);
     const marketIds = new Map(marketsRetour.map((x) => [`${x.source}:${x.external_id}`, x.id]));
     const outcomesAvecMarket = catalogue.outcomes.map(({ market_key, ...issue }) => ({
       ...issue,
       market_id: marketIds.get(market_key)
     })).filter((x) => x.market_id);
-    const outcomesRetour = await db.upsert("mk_outcomes", outcomesAvecMarket, "market_id,external_id", "id,market_id,external_id,probability");
+    const outcomesRetour = await db.upsert("mk_outcomes", outcomesAvecMarket, "market_id,external_id", "id,market_id,external_id,probability", LOT_LEGER);
     const marchesSnapshots = new Set(
       [...marketsAvecEvent]
         .sort((a, b) => (b.volume_24h || 0) - (a.volume_24h || 0) || (b.volume || 0) - (a.volume || 0))
@@ -262,14 +316,15 @@ async function synchroniser({ ecriture = false, trigger = "manual" } = {}) {
       .filter((x) => x.probability != null && marchesSnapshots.has(x.market_id))
       .slice(0, 800)
       .map((x) => ({ outcome_id: x.id, probability: x.probability, recorded_at: quartHeure }));
-    await db.upsert("mk_price_snapshots", snapshots, "outcome_id,recorded_at", "id");
+    await db.upsert("mk_price_snapshots", snapshots, "outcome_id,recorded_at", "id", LOT_LEGER);
 
     for (const source of ["POLYMARKET", "MANIFOLD"]) {
       if (catalogue.markets.some((x) => x.source === source)) {
-        await db.requete(`mk_markets?source=eq.${source}&last_seen_at=lt.${encodeURIComponent(startedAt.toISOString())}`, {
+        await db.requete(`mk_markets?source=eq.${source}&unavailable_at=is.null&last_seen_at=lt.${encodeURIComponent(startedAt.toISOString())}`, {
           method: "PATCH",
           body: { unavailable_at: startedAt.toISOString() },
-          prefer: "return=minimal"
+          prefer: "return=minimal",
+          reprises: MAX_REPRISES
         });
       }
     }

@@ -64,3 +64,52 @@ test("borne la probabilité Polymarket précédente entre zéro et un", async ()
 
   assert.equal(issue.previous_24h, 0);
 });
+
+test("recoupe le lot quand la base dépasse son délai d'exécution", async () => {
+  const fetchOriginal = globalThis.fetch;
+  const tailles = [];
+  globalThis.fetch = async (_url, options) => {
+    const lot = JSON.parse(options.body);
+    tailles.push(lot.length);
+    if (lot.length > 1) {
+      return new Response(
+        JSON.stringify({ code: "57014", message: "canceling statement due to statement timeout" }),
+        { status: 500 }
+      );
+    }
+    return new Response(JSON.stringify(lot.map((ligne) => ({ id: ligne.external_id }))), { status: 200 });
+  };
+
+  try {
+    const db = new SupabaseService("https://example.supabase.co", "sb_secret_test");
+    const lignes = [1, 2, 3, 4].map((n) => ({ external_id: `m${n}` }));
+    const sorties = await db.upsert("mk_markets", lignes, "source,external_id", "id", 4);
+
+    assert.deepEqual(sorties.map((x) => x.id), ["m1", "m2", "m3", "m4"]);
+    assert.deepEqual(tailles, [4, 2, 1, 1, 2, 1, 1]);
+  } finally {
+    globalThis.fetch = fetchOriginal;
+  }
+});
+
+test("laisse remonter une vraie erreur de données sans la réessayer", async () => {
+  const fetchOriginal = globalThis.fetch;
+  let appels = 0;
+  globalThis.fetch = async () => {
+    appels += 1;
+    return new Response(JSON.stringify({ code: "23502", message: "null value in column" }), { status: 400 });
+  };
+
+  try {
+    const db = new SupabaseService("https://example.supabase.co", "sb_secret_test");
+    await assert.rejects(() => db.upsert("mk_markets", [{ external_id: "m1" }], "source,external_id"));
+    assert.equal(appels, 1);
+  } finally {
+    globalThis.fetch = fetchOriginal;
+  }
+});
+
+test("ne remet pas d'indisponibilité sur les marchés déjà retirés", async () => {
+  const source = await readFile(new URL("../scripts/sync_catalogue.mjs", import.meta.url), "utf8");
+  assert.match(source, /mk_markets\?source=eq\.\$\{source\}&unavailable_at=is\.null/);
+});
