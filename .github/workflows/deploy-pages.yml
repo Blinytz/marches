@@ -26,7 +26,8 @@ jobs:
       # d'elle-même quand elle change (une PWA installée peut rester ouverte
       # des jours avec l'ancien code en mémoire).
       - name: Estampiller la version
-        run: printf '{ "version": "%s" }\n' "$GITHUB_SHA" > pwa/version.json
+        run: |
+          printf '{ "version": "%s" }\n' "$GITHUB_SHA" > pwa/version.json
       - uses: actions/upload-pages-artifact@v3
         with:
           path: pwa
