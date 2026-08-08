@@ -16,6 +16,7 @@ import { pageNotifications } from "./pages/notifications.js";
 import { pageStats } from "./pages/stats.js";
 import { pageSucces } from "./pages/succes.js";
 import { telechargerExportEclatsMarches } from "./integration/export-snapshot.js";
+import { lireVersionDeployee, noterVersionAuChargement, rechargerApp, versionCourante } from "./version.js";
 
 // Architecture en 3 piliers. La sous-navigation dépend du pilier actif.
 const SOUS_NAV = {
@@ -229,6 +230,12 @@ document.body.addEventListener("click", async (e) => {
     e.preventDefault();
     rechargerApp();
   }
+  if (a === "forcer-maj") {
+    e.preventDefault();
+    act.disabled = true;
+    act.textContent = "Mise à jour…";
+    rechargerApp({ radical: true });
+  }
   if (a === "ticket") {
     e.preventDefault();
     location.hash = `#/marche/${act.dataset.marche}?issue=${act.dataset.issue}&t=1`;
@@ -391,25 +398,11 @@ if ("serviceWorker" in navigator && location.protocol !== "file:") {
 
 // ---------- Détection des déploiements ----------
 //
-// Une PWA installée peut rester ouverte des jours : elle continue de faire
-// tourner le code chargé au premier lancement, même après un déploiement.
-// On note la version au démarrage puis on la recompare à chaque retour dans
-// l'app ; si elle a changé, on recharge (ou on propose de le faire si une
-// saisie est en cours, pour ne pas perdre un ordre en préparation).
+// La mécanique vit dans version.js ; ici on décide seulement quand recharger :
+// tout de suite si l'app est au repos, sinon on propose un bandeau pour ne pas
+// effacer un ordre en cours de saisie.
 
-let versionAuChargement = null;
 let derniereVerification = 0;
-
-async function lireVersionDeployee() {
-  try {
-    const reponse = await fetch(`version.json?t=${Date.now()}`, { cache: "no-store" });
-    if (!reponse.ok) return null;
-    const contenu = await reponse.json();
-    return contenu?.version || null;
-  } catch {
-    return null; // hors ligne : rien à conclure
-  }
-}
 
 function appAuRepos() {
   if (document.getElementById("dialogue-connexion")?.open) return false;
@@ -419,21 +412,14 @@ function appAuRepos() {
     .some((champ) => String(champ.value || "").trim() !== "");
 }
 
-function rechargerApp() {
-  caches.keys()
-    .then((noms) => Promise.all(noms.map((nom) => caches.delete(nom))))
-    .catch(() => {})
-    .finally(() => location.reload());
-}
-
 async function verifierVersion() {
   if (Date.now() - derniereVerification < 10000) return; // anti-rafale, rien de plus
   derniereVerification = Date.now();
   inscriptionSW?.update?.().catch(() => {});
   const deployee = await lireVersionDeployee();
   if (!deployee) return;
-  if (versionAuChargement === null) { versionAuChargement = deployee; return; }
-  if (deployee === versionAuChargement || majDisponible) return;
+  if (versionCourante() === null) { noterVersionAuChargement(deployee); return; }
+  if (deployee === versionCourante() || majDisponible) return;
   if (appAuRepos()) { rechargerApp(); return; }
   majDisponible = true;
   majEntete();
@@ -444,7 +430,7 @@ document.addEventListener("visibilitychange", () => {
 });
 window.addEventListener("focus", () => verifierVersion());
 setInterval(() => { if (document.visibilityState === "visible") verifierVersion(); }, 15 * 60 * 1000);
-lireVersionDeployee().then((v) => { versionAuChargement = v; });
+lireVersionDeployee().then(noterVersionAuChargement);
 
 majEntete();
 rendre();

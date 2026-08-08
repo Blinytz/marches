@@ -19,6 +19,8 @@ const migrationPortefeuille = read("sql/002_portefeuille_eclats_reel.sql");
 const workflowSync = read(".github/workflows/sync-catalogue.yml");
 const workflowDeploy = read(".github/workflows/deploy-pages.yml");
 const sw = read("pwa/sw.js");
+const version = read("pwa/js/version.js");
+const parametres = read("pwa/js/pages/parametres.js");
 const sync = read("scripts/sync_catalogue.mjs");
 const marketData = read("pwa/js/api/market-data.js");
 const accueil = read("pwa/js/pages/accueil.js");
@@ -61,8 +63,11 @@ test("le service worker contourne le cache HTTP de GitHub Pages", sw.includes('c
 test("le déploiement estampille une version", workflowDeploy.includes("pwa/version.json") &&
   workflowDeploy.includes("GITHUB_SHA"));
 test("l'app relit la version au retour au premier plan",
-  app.includes('fetch(`version.json?t=${Date.now()}`, { cache: "no-store" })') &&
+  version.includes('fetch(`version.json?t=${Date.now()}`, { cache: "no-store" })') &&
   app.includes('document.addEventListener("visibilitychange"'));
+test("les réglages affichent la version et savent la forcer",
+  parametres.includes("versionCourteAffichable()") && parametres.includes('data-action="forcer-maj"') &&
+  app.includes("rechargerApp({ radical: true })"));
 test("une saisie en cours empêche le rechargement automatique",
   app.includes("appAuRepos()") && app.includes('bandeau-maj'));
 test("« Tous les marchés » reste accessible depuis la sous-navigation",
@@ -91,7 +96,7 @@ const jsFiles = [
   "pwa/js/api/normalize.js", "pwa/js/api/market-data.js", "pwa/js/api/market-detail.js", "pwa/js/api/supabase.js",
   ...readdirSync(pagesDir).filter((name) => name.endsWith(".js")).map((name) => `pwa/js/pages/${name}`),
   "pwa/js/integration/eclats-adapter.js", "pwa/js/integration/eclats-wallet.js",
-  "pwa/js/integration/export-snapshot.js"
+  "pwa/js/integration/export-snapshot.js", "pwa/js/version.js"
   ,"scripts/sync_catalogue.mjs"
 ];
 for (const file of jsFiles) {

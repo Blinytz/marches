@@ -3,6 +3,7 @@
 // non persistées (le registre serveur versionné arrive en Phase C).
 import { etat } from "../etat.js";
 import { echap, etatVide } from "../ui.js";
+import { versionCourteAffichable } from "../version.js";
 
 const CATEGORIES = ["Économie", "Exécution", "Découverte", "Fraîcheur", "Notifications", "Interface"];
 
@@ -48,6 +49,15 @@ export function pageParametres({ query }) {
     (!filtre || r.libelle.toLowerCase().includes(filtre) || r.cle.toLowerCase().includes(filtre) || r.description.toLowerCase().includes(filtre)));
 
   const preferences = `
+    <div class="panneau"><h3>Version installée</h3>
+      <div class="reglage">
+        <div class="reglage-infos"><div class="reglage-libelle">Code en cours d'exécution</div>
+          <div class="reglage-desc">Une application installée peut continuer à faire tourner une ancienne version
+            longtemps après une mise à jour. Ce bouton vide tout et repart du serveur.</div></div>
+        <div class="reglage-ctrl"><span class="pastille">${versionCourteAffichable()}</span></div>
+      </div>
+      <button class="btn btn-discret" data-action="forcer-maj">Forcer la mise à jour</button>
+    </div>
     <div class="panneau"><h3>Sauvegarde et interopérabilité</h3>
       <p class="muet">Télécharge une copie complète des données locales de cette application.
         Le fichier contient aussi le journal d'Éclats au format commun, lisible par Centrale.</p>
