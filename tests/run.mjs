@@ -79,8 +79,21 @@ test("la synchro pagine Polymarket au lieu de demander une limite ignorée",
   sync.includes("offset=${page * 100}") && !/limit=(?:200|300)&active/.test(sync));
 test("le client ne demande plus les payloads bruts",
   !marketData.includes('select: "*,mk_outcomes(*)"') &&
-  marketData.includes("raw_payload->>createdAt") &&
-  !/issue\.raw_payload/.test(marketData));
+  !marketData.includes("raw_payload->>") &&
+  marketData.includes("created_source_at"));
+// Les payloads bruts pesaient l'essentiel des 1,33 Go du projet Supabase
+// partagé, dont la limite gratuite est de 500 Mo.
+test("la synchro n'écrit plus les payloads bruts en base",
+  !/raw_payload\s*:/.test(sync) && sync.includes("created_source_at:"));
+test("la synchro purge les séries temporelles anciennes",
+  sync.includes("RETENTION_RELEVES_JOURS") && sync.includes("async purger("));
+test("la synchro purge le catalogue périmé",
+  sync.includes("RETENTION_CATALOGUE_JOURS = 7") && sync.includes("rpc/mk_purger_catalogue"));
+// La rétention suppose que la purge marche. La soupape suppose seulement que la
+// base sait dire sa taille : c'est le garde-fou de dernier recours.
+test("la synchro mesure la base avant d'écrire et se suspend au seuil",
+  sync.includes("SEUIL_ARRET_MO = 450") && sync.includes("SEUIL_PRUDENCE_MO = 350") &&
+  sync.includes("rpc/mk_taille_base") && sync.includes("ecritureSuspendue"));
 test("le cache hors ligne se replie quand le quota est atteint",
   marketData.includes("tentatives") && marketData.includes("marches.slice(0, 400)"));
 test("le catalogue est lu page par page, trié sur la clé primaire",

@@ -25,13 +25,32 @@ const POLYMARKET_URLS = POLYMARKET_AXES.flatMap((axe) => Array.from(
 const MANIFOLD_URL = "https://api.manifold.markets/v0/markets?limit=1000&sort=created-time";
 
 // Écriture par lots : au-delà, PostgREST dépasse le délai d'exécution imposé
-// par Supabase sur les tables qui portent un raw_payload.
+// par Supabase.
 const TAILLE_LOT = 40;
-// Les tables qui portent un raw_payload complet (un événement Polymarket
-// entier) coûtent bien plus cher par ligne que mk_outcomes ou les relevés.
+// Les événements et les marchés portent encore de longues descriptions ; ils
+// restent plus lourds par ligne que mk_outcomes ou les relevés de prix.
 const LOT_LOURD = 25;
 const LOT_LEGER = 150;
 const MAX_REPRISES = 4;
+
+// Rétention. Sans purge, le catalogue accumulait 5 334 nouveaux marchés par
+// jour dont la PWA n'affiche jamais que les vivants, et les relevés de prix
+// grossissaient de ~11 700 lignes par jour sans que personne ne les lise : le
+// projet Supabase partagé a dépassé la limite de 500 Mo du plan gratuit et est
+// passé en lecture seule le 12 août 2026.
+const RETENTION_CATALOGUE_JOURS = 7;
+const RETENTION_RELEVES_JOURS = 90;
+const RETENTION_EXECUTIONS_JOURS = 30;
+
+// Soupape de sécurité. La rétention seule suppose que la purge fonctionne ; si
+// elle échoue en silence, la base repart vers la limite de 500 Mo du plan
+// gratuit, et au-delà Supabase passe le projet en lecture seule puis le disque
+// se remplit. Le 12 août 2026, cet enchaînement a coûté 66 heures
+// d'indisponibilité. On mesure donc la taille avant d'écrire, et on se
+// restreint tout seul avant d'atteindre le mur.
+const SEUIL_PRUDENCE_MO = 350;
+const SEUIL_ARRET_MO = 450;
+const RETENTION_CATALOGUE_SERREE_JOURS = 3;
 
 const pause = (ms) => new Promise((resoudre) => setTimeout(resoudre, ms));
 
@@ -69,6 +88,16 @@ const dateOuNull = (valeur) => {
   if (!valeur) return null;
   const date = new Date(valeur);
   return Number.isFinite(date.getTime()) ? date.toISOString() : null;
+};
+
+// Date de création annoncée par la source : ISO chez Polymarket, epoch en
+// millisecondes chez Manifold. Elle était autrefois relue depuis `raw_payload`,
+// ce qui obligeait à conserver la réponse brute entière en base.
+const dateCreationSource = (brut) => {
+  const iso = dateOuNull(brut?.createdAt || brut?.creationDate);
+  if (iso) return iso;
+  const ms = Number(brut?.createdTime);
+  return Number.isFinite(ms) && ms > 0 ? new Date(ms).toISOString() : null;
 };
 
 const entierOuNull = (valeur) => Number.isFinite(Number(valeur)) ? Math.max(0, Math.round(Number(valeur))) : null;
@@ -119,7 +148,6 @@ export function preparerCatalogue(polymarketBrut, manifoldBrut, maintenant = new
       volume: nombre(marche.volume),
       volume_24h: nombre(marche.volume24h),
       liquidity: nombre(marche.liquidity),
-      raw_payload: brut,
       source_updated_at: dateOuNull(brut.updatedAt || brut.lastUpdatedTime),
       last_seen_at: instant,
       unavailable_at: null
@@ -150,7 +178,7 @@ export function preparerCatalogue(polymarketBrut, manifoldBrut, maintenant = new
       liquidity: nombre(marche.liquidity),
       bettor_count: entierOuNull(marche.bettorCount),
       spread: Number.isFinite(Number(marche.spread)) ? Number(marche.spread) : null,
-      raw_payload: brut,
+      created_source_at: dateCreationSource(brut),
       source_updated_at: dateOuNull(brut.updatedAt || brut.lastUpdatedTime),
       last_seen_at: instant,
       unavailable_at: null
@@ -167,7 +195,6 @@ export function preparerCatalogue(polymarketBrut, manifoldBrut, maintenant = new
     clob_token_id: issue.tokenId || null,
     source_market_id: issue.marketId || null,
     condition_id: issue.conditionId || null,
-    raw_payload: issue,
     last_seen_at: instant
   })));
 
@@ -243,6 +270,52 @@ export class SupabaseService {
     }
   }
 
+  // Rétention : la base est partagée par tout l'écosystème et son quota est
+  // commun. Une purge ratée ne doit pas faire échouer une synchronisation
+  // réussie, elle sera rejouée au créneau suivant.
+  // Taille de la base en mégaoctets, ou null si la mesure échoue : une soupape
+  // qui ne sait pas mesurer ne doit pas bloquer la synchronisation.
+  async tailleBaseMo() {
+    try {
+      const reponse = await this.requete("rpc/mk_taille_base", { method: "POST", body: {} });
+      const octets = Number(Array.isArray(reponse) ? reponse[0] : reponse);
+      return Number.isFinite(octets) ? Math.round(octets / (1024 * 1024)) : null;
+    } catch (erreur) {
+      console.error(`Mesure de la taille ignorée : ${erreur.message}`);
+      return null;
+    }
+  }
+
+  async purger(maintenant = new Date(), joursCatalogue = RETENTION_CATALOGUE_JOURS) {
+    const limite = (jours) => new Date(maintenant.getTime() - jours * 86400000).toISOString();
+    const suppressions = [
+      ["mk_price_snapshots", `recorded_at=lt.${encodeURIComponent(limite(RETENTION_RELEVES_JOURS))}`],
+      ["mk_sync_runs", `started_at=lt.${encodeURIComponent(limite(RETENTION_EXECUTIONS_JOURS))}`]
+    ];
+    for (const [table, filtre] of suppressions) {
+      try {
+        await this.requete(`${table}?${filtre}`, { method: "DELETE", prefer: "return=minimal" });
+      } catch (erreur) {
+        console.error(`Purge ${table} ignorée : ${erreur.message}`);
+      }
+    }
+    // Le catalogue périmé passe par une fonction SQL : la condition « aucune
+    // position ni transaction ne s'y rattache » ne s'exprime pas en PostgREST,
+    // et une suppression aveugle échouerait sur les clés étrangères.
+    try {
+      const purge = await this.requete("rpc/mk_purger_catalogue", {
+        method: "POST",
+        body: { p_jours: joursCatalogue }
+      });
+      const bilan = Array.isArray(purge) ? purge[0] : purge;
+      if (bilan?.marches || bilan?.evenements) {
+        console.log(`Catalogue purgé : ${bilan.marches} marchés, ${bilan.evenements} événements.`);
+      }
+    } catch (erreur) {
+      console.error(`Purge du catalogue ignorée : ${erreur.message}`);
+    }
+  }
+
   async inserer(table, lignes) {
     for (let i = 0; i < lignes.length; i += 250) {
       await this.requete(table, {
@@ -281,6 +354,35 @@ async function synchroniser({ ecriture = false, trigger = "manual" } = {}) {
   if (!ecriture) return resume;
 
   const db = new SupabaseService(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+
+  // Soupape : on mesure avant d'écrire. Au-delà du seuil d'arrêt, la
+  // synchronisation ne fait plus que purger. Mieux vaut un catalogue figé
+  // quelques heures qu'un projet en lecture seule pendant trois jours.
+  const tailleMo = await db.tailleBaseMo();
+  const arret = tailleMo != null && tailleMo >= SEUIL_ARRET_MO;
+  const prudence = tailleMo != null && tailleMo >= SEUIL_PRUDENCE_MO;
+  const joursCatalogue = prudence ? RETENTION_CATALOGUE_SERREE_JOURS : RETENTION_CATALOGUE_JOURS;
+  if (prudence) {
+    console.error(`Base à ${tailleMo} Mo : rétention resserrée à ${joursCatalogue} jours.`);
+    erreurs.push({ source: "QUOTA", message: `Base à ${tailleMo} Mo, rétention ${joursCatalogue} j` });
+  }
+  if (arret) {
+    console.error(`Base à ${tailleMo} Mo : écriture du catalogue suspendue, purge seule.`);
+    erreurs.push({ source: "QUOTA", message: `Base à ${tailleMo} Mo, écriture suspendue` });
+    await db.purger(startedAt, joursCatalogue);
+    await db.inserer("mk_sync_runs", [{
+      run_id: runId,
+      trigger,
+      started_at: startedAt.toISOString(),
+      finished_at: new Date().toISOString(),
+      status: "PARTIAL",
+      polymarket_count: 0,
+      manifold_count: 0,
+      error_summary: erreurs
+    }]);
+    return { ...resume, tailleMo, ecritureSuspendue: true };
+  }
+
   await db.inserer("mk_sync_runs", [{
     run_id: runId,
     trigger,
@@ -317,6 +419,7 @@ async function synchroniser({ ecriture = false, trigger = "manual" } = {}) {
       .slice(0, 800)
       .map((x) => ({ outcome_id: x.id, probability: x.probability, recorded_at: quartHeure }));
     await db.upsert("mk_price_snapshots", snapshots, "outcome_id,recorded_at", "id", LOT_LEGER);
+    await db.purger(startedAt, joursCatalogue);
 
     for (const source of ["POLYMARKET", "MANIFOLD"]) {
       if (catalogue.markets.some((x) => x.source === source)) {

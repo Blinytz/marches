@@ -280,6 +280,7 @@ h3 { font-size: 0.95rem; font-weight: 700; margin: 0.4rem 0; }
   background: var(--grad-eclats); color: #4a2e00; font-weight: 600;
   box-shadow: var(--ombre-2);
 }
+.bandeau-maj { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
 .bandeau .btn { margin-left: auto; flex-shrink: 0; }
 
 /* ===================== Contenu ===================== */
@@ -1053,6 +1054,11 @@ function marcheDepuisSupabase(ligne) {
     theme: ligne.category || "Autres",
     regions: ligne.regions || ["Monde"],
     closeAt: ligne.close_at,
+    // Date de création à la source et date d'entrée dans notre catalogue, pour
+    // un vrai tri Nouveaux. Les marchés d'avant l'allègement du catalogue n'ont
+    // pas de date de création : ils se replient sur leur date d'entrée.
+    createdAt: ligne.created_source_at || ligne.first_seen_at || null,
+    firstSeenAt: ligne.first_seen_at || null,
     expectedResolutionAt: ligne.expected_resolution_at,
     resolutionTimeConfidence: "EXPECTED",
     resolutionSource: ligne.resolution_source,
@@ -1066,28 +1072,78 @@ function marcheDepuisSupabase(ligne) {
     issues: (ligne.mk_outcomes || [])
       .sort((a, b) => a.position - b.position)
       .map((issue) => ({
-        ...(issue.raw_payload || {}),
         id: issue.external_id,
         label: issue.label,
         prob: issue.probability == null ? null : Number(issue.probability),
         prev24h: issue.previous_24h == null ? null : Number(issue.previous_24h),
-        tokenId: issue.clob_token_id || issue.raw_payload?.tokenId || null,
-        marketId: issue.source_market_id || issue.raw_payload?.marketId || null,
-        conditionId: issue.condition_id || issue.raw_payload?.conditionId || null,
+        tokenId: issue.clob_token_id || null,
+        marketId: issue.source_market_id || null,
+        conditionId: issue.condition_id || null,
         history: []
       }))
   };
 }
 
-async function chargerCatalogueSupabase() {
-  const lignes = await rest("mk_markets", {
-    select: "*,mk_outcomes(*)",
+// Colonnes réellement lues par le client. « select=* » ramenait aussi les
+// raw_payload complets, soit 14 Mo pour 546 marchés dont 12 Mo inutiles : le
+// chargement mobile était lent et la mise en cache hors ligne dépassait
+// silencieusement le quota. Ces payloads ont depuis été supprimés de la base,
+// où ils occupaient l'essentiel du quota du projet partagé, et la date de
+// création a sa propre colonne.
+const COLONNES_MARCHE = [
+  "source", "external_id", "source_url", "title", "description", "image_url",
+  "market_type", "status", "tradable", "non_tradable_reason", "category", "regions",
+  "close_at", "expected_resolution_at", "resolution_source",
+  "volume", "volume_24h", "liquidity", "bettor_count", "spread",
+  "source_updated_at", "last_seen_at", "first_seen_at", "created_source_at",
+  "mk_outcomes(external_id,label,position,probability,previous_24h,clob_token_id,source_market_id,condition_id)"
+].join(",");
+
+// Le catalogue dépasse le millier de marchés : demandé d'un bloc, PostgREST
+// dépasse le délai d'exécution accordé au rôle public. On le lit page par page,
+// du plus gros volume au plus petit, et on garde ce qu'on a pu obtenir.
+const TAILLE_PAGE = 300;
+const PAGES_MAX = 9;
+const PAGES_SIMULTANEES = 3;
+
+function pageCatalogue(page) {
+  return rest("mk_markets", {
+    select: COLONNES_MARCHE,
     status: "eq.OPEN",
     unavailable_at: "is.null",
-    order: "volume_24h.desc",
-    limit: "300"
+    // Tri par clé primaire : stable d'une page à l'autre (aucun recouvrement,
+    // aucun trou) et surtout dix fois plus rapide qu'un tri par volume, qui
+    // dépassait le délai d'exécution accordé au rôle public. Le classement
+    // affiché est de toute façon calculé côté client.
+    order: "id.asc",
+    limit: String(TAILLE_PAGE),
+    offset: String(page * TAILLE_PAGE)
   });
-  return (lignes || []).map(marcheDepuisSupabase).filter((m) => m.issues.length);
+}
+
+async function chargerCatalogueSupabase() {
+  const marches = [];
+  let premiereErreur = null;
+  for (let debut = 0; debut < PAGES_MAX; debut += PAGES_SIMULTANEES) {
+    const lot = await Promise.all(
+      Array.from({ length: PAGES_SIMULTANEES }, (_, i) => debut + i)
+        .filter((page) => page < PAGES_MAX)
+        .map((page) => pageCatalogue(page).catch((erreur) => {
+          premiereErreur = premiereErreur || erreur;
+          return null;
+        }))
+    );
+    for (const lignes of lot) {
+      if (!lignes?.length) continue;
+      marches.push(...lignes.map(marcheDepuisSupabase).filter((m) => m.issues.length));
+    }
+    // Un lot incomplet signifie que le catalogue est épuisé.
+    if (lot.some((lignes) => !lignes || lignes.length < TAILLE_PAGE)) break;
+  }
+  // Une page manquante vaut mieux qu'un écran vide, mais zéro marché est une
+  // vraie panne qu'il faut laisser remonter jusqu'au repli hors ligne.
+  if (!marches.length && premiereErreur) throw premiereErreur;
+  return marches;
 }
 
 function lireCache() {
@@ -1101,10 +1157,20 @@ function lireCache() {
 }
 
 function sauverCache(marches) {
-  try {
-    localStorage.setItem(CLE_CACHE, JSON.stringify({ enregistreAt: Date.now(), marches }));
-  } catch {
-    // Un catalogue trop volumineux ne doit jamais empêcher l'application de fonctionner.
+  // Le quota localStorage (~5 Mo) est vite atteint : plutôt que de renoncer au
+  // hors-ligne, on retente avec un catalogue de plus en plus réduit.
+  const tentatives = [
+    marches,
+    marches.map(({ descriptionOriginal, ...m }) => ({ ...m, descriptionOriginal: "" })),
+    marches.slice(0, 400).map(({ descriptionOriginal, ...m }) => ({ ...m, descriptionOriginal: "" }))
+  ];
+  for (const lot of tentatives) {
+    try {
+      localStorage.setItem(CLE_CACHE, JSON.stringify({ enregistreAt: Date.now(), marches: lot }));
+      return;
+    } catch {
+      // Trop volumineux : on essaie la variante suivante.
+    }
   }
 }
 
@@ -1729,6 +1795,15 @@ function compteReboursCourt(iso) {
   return `${hh}:${mm}:${ss}`;
 }
 
+// Marché « à échéance passée » : sa date de clôture/résolution est dépassée
+// mais la source ne l'a pas encore résolu. Non pariable et sans intérêt pour
+// la navigation — on l'écarte des listes par défaut (récupérable via un filtre).
+function estEchu(m, margeMs = 0) {
+  if (m.status === "RESOLVED" || m.status === "CANCELLED" || m.status === "CLOSED") return true;
+  const echeance = m.expectedResolutionAt || m.closeAt;
+  return Boolean(echeance) && (new Date(echeance).getTime() - Date.now()) < margeMs;
+}
+
 function libelleEcheance(m) {
   if (m.status === "RESOLVED" || m.status === "CANCELLED") return "terminé";
   if (m.status === "CLOSED") return "Fermé · résolution en attente";
@@ -2000,7 +2075,9 @@ function demarrerRouteur(conteneur, apresRendu) {
 
 /* ================= js/pages/accueil.js ================= */
 // Accueil « Pour moi » : mélange de formats (section 9.2), ordre section 8.8.
-const ouverts = () => etat.marches.filter((m) => m.status === "OPEN");
+// Marchés ouverts ET dont l'échéance n'est pas passée : le fil ne montre que
+// des marchés réellement actionnables (fini les 0 % « échéance passée »).
+const ouverts = () => etat.marches.filter((m) => m.status === "OPEN" && !estEchu(m));
 
 function pageAccueil() {
   if (etat.chargementCatalogue) {
@@ -2022,10 +2099,19 @@ function pageAccueil() {
       <a class="btn btn-claim" href="#/resultats">Récupérer</a>
     </div>` : "";
 
-  const sous24 = tous.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() < 24 * 3600e3)
+  const sous24 = tous.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() > 0
+      && new Date(m.closeAt) - Date.now() < 24 * 3600e3)
     .sort((a, b) => new Date(a.closeAt) - new Date(b.closeAt));
 
-  const nouveauxThemes = tous.filter((m) => etat.prefs.themesSuivis.includes(m.theme));
+  // Sans thème suivi, la section restait vide en permanence alors que le
+  // catalogue se renouvelle en continu : on montre alors les entrées les plus
+  // récentes, toutes catégories confondues.
+  const themesSuivis = etat.prefs.themesSuivis;
+  const dateEntree = (m) => Date.parse(m.createdAt || m.firstSeenAt || "") || 0;
+  const nouveauxThemes = tous
+    .filter((m) => !themesSuivis.length || themesSuivis.includes(m.theme))
+    .sort((a, b) => dateEntree(b) - dateEntree(a))
+    .slice(0, 4);
   const franceEurope = tous.filter((m) => m.regions.some((r) => ["France", "Europe"].includes(r)));
   const longTerme = tous.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() > 30 * 24 * 3600e3).slice(0, 3);
 
@@ -2061,8 +2147,10 @@ function pageAccueil() {
       ? `<div class="rangee-cartes">${sous24.map(carteMarche).join("")}</div>`
       : etatVide("⏱", "Rien ne se résout dans les 24 h", "Élargissez l'horizon dans la recherche.")}
 
-    <div class="rangee-titre"><h2>✨ Nouveaux dans vos thèmes</h2>
-      <span class="tres-muet">${etat.prefs.themesSuivis.join(" · ")}</span></div>
+    <div class="rangee-titre"><h2>✨ ${themesSuivis.length ? "Nouveaux dans vos thèmes" : "Derniers marchés ouverts"}</h2>
+      ${themesSuivis.length
+        ? `<span class="tres-muet">${echap(themesSuivis.join(" · "))}</span>`
+        : `<a class="lien-tout" href="#/parametres">Choisir mes thèmes</a>`}</div>
     ${nouveauxThemes.length
       ? carteEditoriale(nouveauxThemes[0]) +
         (nouveauxThemes.length > 1 ? `<div class="grille-cartes" style="margin-top:12px">${nouveauxThemes.slice(1, 4).map(carteMarche).join("")}</div>` : "")
@@ -2143,18 +2231,27 @@ function filtrerMarches(q) {
   if (q.region && q.region !== "France & Europe") liste = liste.filter((m) => m.regions.includes(q.region));
   if (q.region === "France & Europe") liste = liste.filter((m) => m.regions.some((r) => ["France", "Europe"].includes(r)));
   if (q.horizon && q.horizon !== "plus") {
-    liste = liste.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() < Number(q.horizon) * 3600e3);
+    // fenêtre = à venir uniquement (borne basse à maintenant, plus d'échéances passées)
+    liste = liste.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() > 0
+      && new Date(m.closeAt) - Date.now() < Number(q.horizon) * 3600e3);
   }
   if (q.horizon === "plus") liste = liste.filter((m) => m.closeAt && new Date(m.closeAt) - Date.now() >= 720 * 3600e3);
+  // Par défaut on masque les marchés à échéance passée (non pariables, 0 %) ;
+  // le chip « Échéance passée » (echus=1) permet de les retrouver.
+  if (q.echus !== "1") liste = liste.filter((m) => !estEchu(m));
   if (q.tradable === "1") liste = liste.filter((m) => m.tradable);
   if (q.favoris === "1") liste = liste.filter((m) => etat.favoris.has(m.id));
   if (q.position === "1") liste = liste.filter((m) => etat.positions.some((p) => p.marcheId === m.id));
 
-  const tri = q.tri || "pertinent";
+  // Par défaut « Tous les marchés » = les plus récents d'abord, pour que rien
+  // ne soit enterré par la personnalisation. « Pertinent pour moi » reste un
+  // tri au choix, et le fil « Pour moi » (accueil) reste la vue personnalisée.
+  const tri = q.tri || "nouveau";
+  const dateCreation = (m) => new Date(m.createdAt || m.firstSeenAt || 0).getTime();
   const cmp = {
     pertinent: (a, b) => score(b) - score(a),
     echeance: (a, b) => new Date(a.closeAt || 8e15) - new Date(b.closeAt || 8e15),
-    nouveau: (a, b) => (b.volume24h || 0) / Math.max(1, b.volume || 1) - (a.volume24h || 0) / Math.max(1, a.volume || 1),
+    nouveau: (a, b) => dateCreation(b) - dateCreation(a),
     volume: (a, b) => (b.volume || 0) - (a.volume || 0),
     variation: (a, b) => {
       const va = (x) => { const i = x.issues[0]; return i?.prob != null && i.prev24h != null ? Math.abs(i.prob - i.prev24h) : 0; };
@@ -2198,6 +2295,7 @@ function pageRecherche({ query: q }) {
   if (q.tradable === "1") chipsActifs.push(`<a class="chip actif" href="${lien(q, { tradable: "" })}">Tradable ✕</a>`);
   if (q.favoris === "1") chipsActifs.push(`<a class="chip actif" href="${lien(q, { favoris: "" })}">Favoris ✕</a>`);
   if (q.position === "1") chipsActifs.push(`<a class="chip actif" href="${lien(q, { position: "" })}">Avec position ✕</a>`);
+  if (q.echus === "1") chipsActifs.push(`<a class="chip actif" href="${lien(q, { echus: "" })}">Échéance passée ✕</a>`);
 
   return `
     <h1>Recherche</h1>
@@ -2215,11 +2313,12 @@ function pageRecherche({ query: q }) {
       <a class="chip ${q.tradable === "1" ? "actif" : ""}" href="${lien(q, { tradable: q.tradable === "1" ? "" : "1" })}">Tradable uniquement</a>
       <a class="chip ${q.favoris === "1" ? "actif" : ""}" href="${lien(q, { favoris: q.favoris === "1" ? "" : "1" })}">Mes favoris</a>
       <a class="chip ${q.position === "1" ? "actif" : ""}" href="${lien(q, { position: q.position === "1" ? "" : "1" })}">Avec position</a>
+      <a class="chip ${q.echus === "1" ? "actif" : ""}" href="${lien(q, { echus: q.echus === "1" ? "" : "1" })}">Échéance passée</a>
     </div>
 
     <div class="chips">
       <span class="tres-muet" style="align-self:center">Trier :</span>
-      ${TRIS.map((t) => `<a class="chip ${(q.tri || "pertinent") === t.cle ? "actif" : ""}" href="${lien(q, { tri: t.cle })}">${t.lib}</a>`).join("")}
+      ${TRIS.map((t) => `<a class="chip ${(q.tri || "nouveau") === t.cle ? "actif" : ""}" href="${lien(q, { tri: t.cle })}">${t.lib}</a>`).join("")}
     </div>
 
     <div class="rangee-titre">
@@ -2982,10 +3081,13 @@ function pageFavoris({ query }) {
       <p class="muet">Suivre France et Europe réduit l'américanisation du fil : la politique locale américaine non suivie reçoit un malus.</p>`,
     filtres: etat.prefs.filtresEnregistres.length
       ? `<div class="carte liste-compacte">${etat.prefs.filtresEnregistres.map((f) =>
-          `<a class="ligne-compacte" href="#/recherche?horizon=24&region=France">
-            <span class="carte-titre" style="flex:1">${echap(f.nom)}</span>
-            <span class="tres-muet">${echap(f.criteres)}</span>
-          </a>`).join("")}</div>`
+          `<div class="ligne-compacte">
+            <a class="carte-titre" style="flex:1; min-width:0" href="#/recherche${f.requete ? "?" + f.requete : ""}">
+              ${echap(f.nom)}
+              <span class="tres-muet" style="display:block">${echap(f.criteres || "")}</span>
+            </a>
+            <button class="carte-etoile" data-action="supprimer-filtre" data-id="${echap(f.id)}" title="Supprimer ce filtre">✕</button>
+          </div>`).join("")}</div>`
       : etatVide("🔖", "Aucun filtre enregistré", "Dans la recherche, composez vos critères puis « Enregistrer ce filtre »."),
     masques: etat.prefs.masques.length
       ? `<div class="chips">${etat.prefs.masques.map((t) =>
@@ -3049,6 +3151,15 @@ function pageParametres({ query }) {
     (!filtre || r.libelle.toLowerCase().includes(filtre) || r.cle.toLowerCase().includes(filtre) || r.description.toLowerCase().includes(filtre)));
 
   const preferences = `
+    <div class="panneau"><h3>Version installée</h3>
+      <div class="reglage">
+        <div class="reglage-infos"><div class="reglage-libelle">Code en cours d'exécution</div>
+          <div class="reglage-desc">Une application installée peut continuer à faire tourner une ancienne version
+            longtemps après une mise à jour. Ce bouton vide tout et repart du serveur.</div></div>
+        <div class="reglage-ctrl"><span class="pastille">${versionCourteAffichable()}</span></div>
+      </div>
+      <button class="btn btn-discret" data-action="forcer-maj">Forcer la mise à jour</button>
+    </div>
     <div class="panneau"><h3>Sauvegarde et interopérabilité</h3>
       <p class="muet">Télécharge une copie complète des données locales de cette application.
         Le fichier contient aussi le journal d'Éclats au format commun, lisible par Centrale.</p>
@@ -3247,21 +3358,18 @@ function pageSucces() {
 
 /* ================= js/app.js ================= */
 // Bootstrap de Marchés.
-
-
-
-
 // Architecture en 3 piliers. La sous-navigation dépend du pilier actif.
 const SOUS_NAV = {
   marches: [
     { lib: "Pour moi", href: "#/accueil", actif: (r) => r.page === "accueil" },
+    { lib: "Tous les marchés", href: "#/recherche",
+      actif: (r) => r.page === "recherche" && !r.query.horizon && !r.query.vue
+        && r.query.tri !== "volume" && !(r.query.region || "").startsWith("France") },
+    { lib: "Populaires", href: "#/recherche?tri=volume", actif: (r) => r.page === "recherche" && r.query.tri === "volume" },
     { lib: "24 h", href: "#/recherche?horizon=24", actif: (r) => r.page === "recherche" && r.query.horizon === "24" },
     { lib: "France & Europe", href: "#/recherche?region=France%20%26%20Europe", actif: (r) => r.page === "recherche" && (r.query.region || "").startsWith("France") },
-    { lib: "Nouveaux", href: "#/recherche?tri=nouveau", actif: (r) => r.page === "recherche" && r.query.tri === "nouveau" },
-    { lib: "Populaires", href: "#/recherche?tri=volume", actif: (r) => r.page === "recherche" && r.query.tri === "volume" },
     { lib: "Thèmes", href: "#/recherche?vue=themes", actif: (r) => r.page === "recherche" && r.query.vue === "themes" },
-    { lib: "Favoris", href: "#/favoris", actif: (r) => r.page === "favoris" },
-    { lib: "Recherche", href: "#/recherche", actif: (r) => r.page === "recherche" && !r.query.horizon && !r.query.tri && !r.query.vue && !(r.query.region || "").startsWith("France") }
+    { lib: "Favoris", href: "#/favoris", actif: (r) => r.page === "favoris" }
   ],
   positions: [],
   portefeuille: [],
@@ -3321,6 +3429,10 @@ const rendre = demarrerRouteur(contenu, (r) => {
   if (r.page === "notifications") marquerToutesVues();
 });
 
+// Passe à vrai quand une nouvelle version a été déployée pendant que l'app
+// était ouverte : voir la section « Détection des déploiements » plus bas.
+let majDisponible = false;
+
 // ---------- En-tête, badges, bandeaux ----------
 
 function majEntete() {
@@ -3352,7 +3464,7 @@ function majEntete() {
   if (etat.chargementCatalogue) {
     tr.classList.add("off");
     tr.innerHTML = `<span>Chargement des marchés…</span>`;
-  } else if (etat.modeDonnees === "reseau") {
+  } else if (etat.modeDonnees === "supabase" || etat.modeDonnees === "reseau") {
     tr.classList.remove("off");
     tr.innerHTML = `● <span>Données réelles</span>`;
   } else if (etat.modeDonnees === "cache") {
@@ -3364,6 +3476,10 @@ function majEntete() {
   }
 
   const bandeaux = [];
+  if (majDisponible) {
+    bandeaux.push(`<div class="bandeau bandeau-maj">✨ Nouvelle version disponible.
+      <button class="btn btn-discret" data-action="recharger-app">Actualiser</button></div>`);
+  }
   if (etat.modeDonnees === "cache") {
     bandeaux.push(`<div class="bandeau bandeau-ws">⚠ Les API sont injoignables. Le dernier catalogue réel enregistré est affiché.</div>`);
   } else if (etat.modeDonnees === "aucune") {
@@ -3450,6 +3566,16 @@ document.body.addEventListener("click", async (e) => {
   if (!act) return;
   const a = act.dataset.action;
 
+  if (a === "recharger-app") {
+    e.preventDefault();
+    rechargerApp();
+  }
+  if (a === "forcer-maj") {
+    e.preventDefault();
+    act.disabled = true;
+    act.textContent = "Mise à jour…";
+    rechargerApp({ radical: true });
+  }
   if (a === "ticket") {
     e.preventDefault();
     location.hash = `#/marche/${act.dataset.marche}?issue=${act.dataset.issue}&t=1`;
@@ -3502,9 +3628,30 @@ document.body.addEventListener("click", async (e) => {
     notifier(); rendre();
   }
   if (a === "enregistrer-filtre") {
+    // Capture les VRAIS critères de la recherche courante (query du hash) et
+    // en fait un libellé lisible, pour pouvoir restaurer le filtre à l'identique.
+    const requete = (location.hash.split("?")[1] || "");
+    const params = new URLSearchParams(requete);
+    const LIB = { q: "Recherche", source: "Source", theme: "Thème", region: "Région",
+      horizon: "Horizon", tradable: "Tradable", favoris: "Favoris",
+      position: "Avec position", tri: "Tri", statut: "Statut" };
+    const morceaux = [...params.entries()]
+      .filter(([, v]) => v && v !== "0")
+      .map(([k, v]) => `${LIB[k] || k}: ${v === "1" ? "oui" : v}`);
+    const criteres = morceaux.length ? morceaux.join(" · ") : "Tous les marchés";
+    const nomDefaut = params.get("q") || params.get("theme") || params.get("region") || criteres;
+    const nom = (prompt("Nom du filtre :", nomDefaut.slice(0, 40)) || "").trim();
+    if (!nom) return;
+    etat.prefs.filtresEnregistres.push({
+      id: "f" + Date.now(), nom, criteres, requete: params.toString()
+    });
     act.textContent = "✓ Filtre enregistré dans Ma liste";
-    etat.prefs.filtresEnregistres.push({ id: "f" + Date.now(), nom: "Filtre du " + new Date().toLocaleDateString("fr-FR"), criteres: "Critères actuels de la recherche" });
     notifier();
+  }
+  if (a === "supprimer-filtre") {
+    e.preventDefault();
+    etat.prefs.filtresEnregistres = etat.prefs.filtresEnregistres.filter((f) => f.id !== act.dataset.id);
+    notifier(); rendre();
   }
   if (a === "notif-test") {
     act.textContent = "✓ Notification de test envoyée au centre interne";
@@ -3584,9 +3731,46 @@ setInterval(() => {
 
 // ---------- Service worker (PWA installable) ----------
 
+let inscriptionSW = null;
 if (false) {
-  navigator.serviceWorker.register("sw.js").catch(() => {});
+  navigator.serviceWorker.register("sw.js").then((reg) => { inscriptionSW = reg; }).catch(() => {});
 }
+
+// ---------- Détection des déploiements ----------
+//
+// La mécanique vit dans version.js ; ici on décide seulement quand recharger :
+// tout de suite si l'app est au repos, sinon on propose un bandeau pour ne pas
+// effacer un ordre en cours de saisie.
+
+let derniereVerification = 0;
+
+function appAuRepos() {
+  if (document.getElementById("dialogue-connexion")?.open) return false;
+  if (!document.getElementById("feuille-basse")?.hidden) return false;
+  // Un montant déjà saisi dans le ticket : on ne recharge pas dans le dos.
+  return ![...document.querySelectorAll("#zone-ticket input, #feuille-basse input")]
+    .some((champ) => String(champ.value || "").trim() !== "");
+}
+
+async function verifierVersion() {
+  if (Date.now() - derniereVerification < 10000) return; // anti-rafale, rien de plus
+  derniereVerification = Date.now();
+  inscriptionSW?.update?.().catch(() => {});
+  const deployee = await lireVersionDeployee();
+  if (!deployee) return;
+  if (versionCourante() === null) { noterVersionAuChargement(deployee); return; }
+  if (deployee === versionCourante() || majDisponible) return;
+  if (appAuRepos()) { rechargerApp(); return; }
+  majDisponible = true;
+  majEntete();
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") verifierVersion();
+});
+window.addEventListener("focus", () => verifierVersion());
+setInterval(() => { if (document.visibilityState === "visible") verifierVersion(); }, 15 * 60 * 1000);
+lireVersionDeployee().then(noterVersionAuChargement);
 
 majEntete();
 rendre();

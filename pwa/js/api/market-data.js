@@ -52,14 +52,10 @@ function marcheDepuisSupabase(ligne) {
     theme: ligne.category || "Autres",
     regions: ligne.regions || ["Monde"],
     closeAt: ligne.close_at,
-    // Date de création à la source (lue depuis le payload brut, sans colonne
-    // dédiée) et date d'entrée dans notre catalogue — pour un vrai tri Nouveaux.
-    createdAt: (() => {
-      if (ligne.cree_poly) return ligne.cree_poly;
-      if (ligne.cree_poly2) return ligne.cree_poly2;
-      if (ligne.cree_manifold) return new Date(Number(ligne.cree_manifold)).toISOString();
-      return ligne.first_seen_at || null;
-    })(),
+    // Date de création à la source et date d'entrée dans notre catalogue, pour
+    // un vrai tri Nouveaux. Les marchés d'avant l'allègement du catalogue n'ont
+    // pas de date de création : ils se replient sur leur date d'entrée.
+    createdAt: ligne.created_source_at || ligne.first_seen_at || null,
     firstSeenAt: ligne.first_seen_at || null,
     expectedResolutionAt: ligne.expected_resolution_at,
     resolutionTimeConfidence: "EXPECTED",
@@ -89,17 +85,15 @@ function marcheDepuisSupabase(ligne) {
 // Colonnes réellement lues par le client. « select=* » ramenait aussi les
 // raw_payload complets, soit 14 Mo pour 546 marchés dont 12 Mo inutiles : le
 // chargement mobile était lent et la mise en cache hors ligne dépassait
-// silencieusement le quota. Seules les trois dates de création manquantes en
-// colonne sont extraites du payload.
+// silencieusement le quota. Ces payloads ont depuis été supprimés de la base,
+// où ils occupaient l'essentiel du quota du projet partagé, et la date de
+// création a sa propre colonne.
 const COLONNES_MARCHE = [
   "source", "external_id", "source_url", "title", "description", "image_url",
   "market_type", "status", "tradable", "non_tradable_reason", "category", "regions",
   "close_at", "expected_resolution_at", "resolution_source",
   "volume", "volume_24h", "liquidity", "bettor_count", "spread",
-  "source_updated_at", "last_seen_at", "first_seen_at",
-  "cree_poly:raw_payload->>createdAt",
-  "cree_poly2:raw_payload->>creationDate",
-  "cree_manifold:raw_payload->>createdTime",
+  "source_updated_at", "last_seen_at", "first_seen_at", "created_source_at",
   "mk_outcomes(external_id,label,position,probability,previous_24h,clob_token_id,source_market_id,condition_id)"
 ].join(",");
 
