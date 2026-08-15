@@ -63,6 +63,30 @@ test("purge les relevés et les exécutions au-delà de la rétention", async ()
   }
 });
 
+test("le surveillant mesure, et signale toute mesure impossible", async () => {
+  const { mesurer } = await import("../scripts/surveiller_taille.mjs");
+  const fetchOriginal = globalThis.fetch;
+  let vu;
+  try {
+    globalThis.fetch = async (url, options) => {
+      vu = { url: String(url), apikey: options.headers.apikey, auth: options.headers.Authorization };
+      return new Response("367001600", { status: 200 });
+    };
+    assert.equal(await mesurer("https://exemple.supabase.co/", "sb_secret_test", "taille_base"), 350);
+    assert.equal(vu.url, "https://exemple.supabase.co/rest/v1/rpc/taille_base");
+    // Les clés « sb_ » ne doivent jamais partir aussi en Authorization.
+    assert.equal(vu.auth, undefined);
+    assert.equal(vu.apikey, "sb_secret_test");
+
+    // Une base injoignable doit remonter, pas être avalée : c'est elle aussi
+    // une anomalie qui mérite le mail d'alerte.
+    globalThis.fetch = async () => new Response("nope", { status: 503 });
+    await assert.rejects(() => mesurer("https://exemple.supabase.co", "sb_secret_test"));
+  } finally {
+    globalThis.fetch = fetchOriginal;
+  }
+});
+
 test("mesure la taille de la base sans jamais faire échouer la synchro", async () => {
   const fetchOriginal = globalThis.fetch;
   try {

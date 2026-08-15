@@ -1,0 +1,39 @@
+name: Surveiller la taille de la base
+
+# Alerte avant le mur. Le 12 août 2026, le dépassement des 500 Mo du plan
+# gratuit n'a été connu qu'au mail de Supabase, trop tard : lecture seule,
+# disque plein, 66 heures d'indisponibilité. Ce workflow échoue volontairement
+# au-delà du seuil, et le mail d'échec GitHub sert d'alerte.
+#
+# Portable tel quel dans un autre dépôt : seuls SUPABASE_URL,
+# SUPABASE_SERVICE_KEY et le nom de la fonction SQL changent.
+
+on:
+  schedule:
+    # Une fois par jour suffit : la base gagne quelques mégaoctets par jour, et
+    # le seuil laisse 150 Mo de marge avant la limite.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surveiller-taille
+  cancel-in-progress: false
+
+jobs:
+  mesurer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - name: Mesurer la taille de la base
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          SEUIL_MO: "350"
+          RPC_TAILLE: mk_taille_base
+        run: node scripts/surveiller_taille.mjs
