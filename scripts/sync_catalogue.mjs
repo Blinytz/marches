@@ -17,7 +17,7 @@ import {
 // par page.
 const POLYMARKET_BASE = "https://gamma-api.polymarket.com/events?limit=100&active=true&closed=false";
 const POLYMARKET_AXES = ["order=volume24hr&ascending=false", "order=startDate&ascending=false"];
-const POLYMARKET_PAGES = 5;
+const POLYMARKET_PAGES = 3;
 const POLYMARKET_URLS = POLYMARKET_AXES.flatMap((axe) => Array.from(
   { length: POLYMARKET_PAGES },
   (_, page) => `${POLYMARKET_BASE}&${axe}&offset=${page * 100}`
@@ -38,8 +38,8 @@ const MAX_REPRISES = 4;
 // grossissaient de ~11 700 lignes par jour sans que personne ne les lise : le
 // projet Supabase partagé a dépassé la limite de 500 Mo du plan gratuit et est
 // passé en lecture seule le 12 août 2026.
-const RETENTION_CATALOGUE_JOURS = 7;
-const RETENTION_RELEVES_JOURS = 90;
+const RETENTION_CATALOGUE_JOURS = 3;
+const RETENTION_RELEVES_JOURS = 30;
 const RETENTION_EXECUTIONS_JOURS = 30;
 
 // Soupape de sécurité. La rétention seule suppose que la purge fonctionne ; si
