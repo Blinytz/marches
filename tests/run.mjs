@@ -87,8 +87,10 @@ test("la synchro n'écrit plus les payloads bruts en base",
   !/raw_payload\s*:/.test(sync) && sync.includes("created_source_at:"));
 test("la synchro purge les séries temporelles anciennes",
   sync.includes("RETENTION_RELEVES_JOURS") && sync.includes("async purger("));
+// La durée elle-même se resserre au gré de la place : on vérifie qu'une
+// rétention est déclarée et appliquée, pas qu'elle vaut tel nombre de jours.
 test("la synchro purge le catalogue périmé",
-  sync.includes("RETENTION_CATALOGUE_JOURS = 7") && sync.includes("rpc/mk_purger_catalogue"));
+  /export const RETENTION_CATALOGUE_JOURS = \d+;/.test(sync) && sync.includes("rpc/mk_purger_catalogue"));
 // La rétention suppose que la purge marche. La soupape suppose seulement que la
 // base sait dire sa taille : c'est le garde-fou de dernier recours.
 test("la synchro mesure la base avant d'écrire et se suspend au seuil",

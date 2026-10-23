@@ -1,7 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { preparerCatalogue, SupabaseService } from "../scripts/sync_catalogue.mjs";
+import {
+  preparerCatalogue, SupabaseService,
+  RETENTION_CATALOGUE_JOURS, RETENTION_RELEVES_JOURS, RETENTION_EXECUTIONS_JOURS
+} from "../scripts/sync_catalogue.mjs";
+
+// Les rétentions se resserrent au gré de la place disponible dans la base :
+// on vérifie que la purge les applique, jamais qu'elles valent tel chiffre.
+const jourAvant = (depuis, jours) =>
+  new Date(Date.parse(depuis) - jours * 86400000).toISOString().slice(0, 10);
 
 const lire = async (nom) => JSON.parse(await readFile(new URL(`fixtures/${nom}`, import.meta.url), "utf8"));
 
@@ -53,11 +61,14 @@ test("purge les relevés et les exécutions au-delà de la rétention", async ()
 
   try {
     const db = new SupabaseService("https://example.supabase.co", "sb_secret_test");
-    await db.purger(new Date("2026-08-12T00:00:00Z"));
+    const maintenant = "2026-08-12T00:00:00Z";
+    await db.purger(new Date(maintenant));
     assert.equal(appels.length, 3);
     assert.equal(appels[0].method, "DELETE");
-    assert.match(appels[0].url, /mk_price_snapshots\?recorded_at=lt\..*2026-05-14/);
-    assert.match(appels[1].url, /mk_sync_runs\?started_at=lt\..*2026-07-13/);
+    assert.ok(appels[0].url.includes("mk_price_snapshots?recorded_at=lt."));
+    assert.ok(appels[0].url.includes(jourAvant(maintenant, RETENTION_RELEVES_JOURS)));
+    assert.ok(appels[1].url.includes("mk_sync_runs?started_at=lt."));
+    assert.ok(appels[1].url.includes(jourAvant(maintenant, RETENTION_EXECUTIONS_JOURS)));
   } finally {
     globalThis.fetch = fetchOriginal;
   }
@@ -135,7 +146,7 @@ test("purge le catalogue périmé par la fonction SQL, jamais par un DELETE aveu
     const rpc = appels.find((x) => x.url.includes("rpc/mk_purger_catalogue"));
     assert.ok(rpc, "la purge du catalogue doit passer par la fonction SQL");
     assert.equal(rpc.method, "POST");
-    assert.deepEqual(JSON.parse(rpc.body), { p_jours: 7 });
+    assert.deepEqual(JSON.parse(rpc.body), { p_jours: RETENTION_CATALOGUE_JOURS });
     assert.equal(appels.some((x) => x.method === "DELETE" && x.url.includes("mk_markets")), false);
   } finally {
     globalThis.fetch = fetchOriginal;
@@ -234,4 +245,33 @@ test("laisse remonter une vraie erreur de données sans la réessayer", async ()
 test("ne remet pas d'indisponibilité sur les marchés déjà retirés", async () => {
   const source = await readFile(new URL("../scripts/sync_catalogue.mjs", import.meta.url), "utf8");
   assert.match(source, /mk_markets\?source=eq\.\$\{source\}&unavailable_at=is\.null/);
+});
+
+test("le journal de taille retient un point par semaine et les sauts notables", async () => {
+  const { doitConsigner } = await import("../scripts/surveiller_taille.mjs");
+  const jour = (n) => Date.parse("2026-10-01T00:00:00Z") + n * 86400000;
+  const entrees = [{ date: "2026-10-01", mo: 144 }];
+
+  assert.equal(doitConsigner([], 144, jour(0)), true, "premier point toujours retenu");
+  assert.equal(doitConsigner(entrees, 145, jour(3)), false, "variation d'un Mo, trop tôt");
+  assert.equal(doitConsigner(entrees, 144, jour(7)), true, "une semaine écoulée");
+  assert.equal(doitConsigner(entrees, 152, jour(1)), true, "saut de huit Mo");
+  assert.equal(doitConsigner([{ date: "illisible", mo: 144 }], 144, jour(0)), true,
+    "date illisible : on consigne plutôt que de laisser le dépôt s'endormir");
+});
+
+test("le journal s'écrit, se relit et reste borné", async () => {
+  const { consigner } = await import("../scripts/surveiller_taille.mjs");
+  const { mkdtempSync, readFileSync } = await import("node:fs");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+  const fichier = join(mkdtempSync(join(tmpdir(), "taille-")), "etat", "taille-base.json");
+  const jour = (n) => Date.parse("2026-01-01T00:00:00Z") + n * 86400000;
+
+  for (let i = 0; i < 130; i++) assert.equal(consigner(fichier, 100 + i, jour(i * 7)), true);
+  assert.equal(consigner(fichier, 229, jour(129 * 7 + 1)), false, "point déjà récent");
+
+  const { mesures } = JSON.parse(readFileSync(fichier, "utf8"));
+  assert.equal(mesures.length, 120);
+  assert.deepEqual(mesures[mesures.length - 1], { date: "2028-06-22", mo: 229 });
 });

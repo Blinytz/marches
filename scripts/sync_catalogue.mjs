@@ -38,9 +38,11 @@ const MAX_REPRISES = 4;
 // grossissaient de ~11 700 lignes par jour sans que personne ne les lise : le
 // projet Supabase partagé a dépassé la limite de 500 Mo du plan gratuit et est
 // passé en lecture seule le 12 août 2026.
-const RETENTION_CATALOGUE_JOURS = 3;
-const RETENTION_RELEVES_JOURS = 30;
-const RETENTION_EXECUTIONS_JOURS = 30;
+// Exportées pour que les tests vérifient le comportement et non des valeurs
+// recopiées : ces durées se resserrent au gré de la place disponible.
+export const RETENTION_CATALOGUE_JOURS = 3;
+export const RETENTION_RELEVES_JOURS = 30;
+export const RETENTION_EXECUTIONS_JOURS = 30;
 
 // Soupape de sécurité. La rétention seule suppose que la purge fonctionne ; si
 // elle échoue en silence, la base repart vers la limite de 500 Mo du plan

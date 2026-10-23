@@ -16,7 +16,8 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  # Le journal est commité : c'est lui qui garde le dépôt actif.
+  contents: write
 
 concurrency:
   group: surveiller-taille
@@ -36,4 +37,21 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           SEUIL_MO: "350"
           RPC_TAILLE: mk_taille_base
+          JOURNAL: etat/taille-base.json
         run: node scripts/surveiller_taille.mjs
+
+      # GitHub désactive les workflows programmés après 60 jours sans commit.
+      # Sans ce point hebdomadaire, la synchro du catalogue mourrait en silence
+      # dès que le dépôt reste deux mois sans modification.
+      - name: Publier le journal
+        if: always()
+        run: |
+          if [ -n "$(git status --porcelain etat/taille-base.json)" ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add etat/taille-base.json
+            git commit -m "Journalise la taille de la base"
+            git push
+          else
+            echo "Journal inchangé, rien à publier."
+          fi
